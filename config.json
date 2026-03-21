@@ -1,0 +1,14 @@
+{
+  "_comment": "Konqi Shimeji configuration. Edit freely.",
+  "behavior_mode":     "calm",
+  "animation_speed":   1.0,
+  "spawn_count":       1,
+  "fps":               60,
+  "cpu_reactions":     true,
+  "cpu_high_threshold": 85,
+  "sound_effects":     true,
+  "always_on_top":     true,
+  "multi_monitor":     false,
+  "sprite_height_px":  96,
+  "debug_mode":        false
+}

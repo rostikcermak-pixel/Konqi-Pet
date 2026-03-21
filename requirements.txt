@@ -1,0 +1,12 @@
+# Konqi Shimeji – Python dependencies
+# Install with:  pip install -r requirements.txt --break-system-packages
+#   or:          pip install -r requirements.txt  (inside a venv)
+
+PyQt6>=6.4.0          # Qt6 bindings (falls back to PyQt5 if absent)
+Pillow>=9.5.0          # Sprite generation / image transforms
+requests>=2.28.0       # Downloading sprites from KDE Community Wiki
+
+# Optional but highly recommended:
+psutil>=5.9.0          # CPU/RAM monitoring for Konqi reactions
+python-xlib>=0.33      # X11 window list (wall/window climbing)
+ewmh>=0.1.6            # Extended Window Manager Hints (window detection)
