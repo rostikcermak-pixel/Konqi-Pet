@@ -4,7 +4,7 @@ A Linux desktop pet that walks around your screen, judges everything you do, and
 
 Built on top of the original [Konqi Shimeji](https://kde.org) concept. Uses PyQt6, runs on X11/XWayland.
 
-![Konqi walking around being chaotic](assets/konqi_preview.png)
+![Konqi walking around being chaotic](assets/konqi_idle.png)
 
 ---
 
