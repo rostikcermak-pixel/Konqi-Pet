@@ -61,7 +61,6 @@ log = logging.getLogger("konqi.main")
 CONFIG_PATH = HERE / "config.json"
 ASSETS_DIR  = HERE / "assets"
 
-
 def load_config() -> dict:
     defaults = dict(
         behavior_mode="calm", animation_speed=1.0, spawn_count=1, fps=60,
@@ -76,13 +75,11 @@ def load_config() -> dict:
         pass
     return defaults
 
-
 def save_config(cfg: dict) -> None:
     try:
         CONFIG_PATH.write_text(json.dumps(cfg, indent=2))
     except Exception as exc:
         log.warning("Could not save config: %s", exc)
-
 
 def pil_to_qpixmap(img: Image.Image) -> QPixmap:
     data = img.tobytes("raw", "RGBA")
@@ -90,13 +87,11 @@ def pil_to_qpixmap(img: Image.Image) -> QPixmap:
                   QImage.Format.Format_RGBA8888 if _QT6 else QImage.Format_RGBA8888)
     return QPixmap.fromImage(qimg)
 
-
 def make_mask_from_pixmap(pixmap: QPixmap) -> QBitmap:
     return pixmap.createMaskFromColor(
         QColor(0, 0, 0, 0),
         Qt.MaskMode.MaskInColor if _QT6 else Qt.MaskInColor,
     )
-
 
                                                                              
                                                          
@@ -355,7 +350,6 @@ class DialogueBubble(QWidget):
 
         p.end()
 
-
                                                                              
                 
                                                                              
@@ -368,7 +362,6 @@ class SpriteLoaderThread(QThread):
             anims = load_sprites(ASSETS_DIR, force_download=self._force)
         self.done.emit(anims)
 
-
 class CPUMonitor(QThread):
     cpu_level = pyqtSignal(float)
     def __init__(self, interval=5.0): super().__init__(); self._interval=interval; self._running=True
@@ -379,7 +372,6 @@ class CPUMonitor(QThread):
                 except Exception: pass
             else: self.msleep(int(self._interval * 1000))
     def stop(self): self._running = False
-
 
                                                                              
                                                
@@ -484,7 +476,7 @@ class KonqiWindow(QWidget):
                                   max(screen_rect.x+51, screen_rect.right-150))
         self._physics = PhysicsEngine(screen_rect, initial_x=float(start_x),
                                        initial_y=float(screen_rect.bottom-120))
-        self._physics.state.on_ground = False  # let the pet fall to the floor on spawn
+        self._physics.state.on_ground = False
                                                                             
         try:
             from sprite_loader import get_climb_canvas_size
@@ -611,7 +603,6 @@ class KonqiWindow(QWidget):
             if s.on_ground:
                 s.vy = 0.0
                 return
-            # Not on ground while IDLE → apply gravity so pet falls to floor.
             anim_key, _ = self._physics.update()
             if anim_key == "fall":
                 self._anim.set_state(State.FALL)
@@ -1201,7 +1192,6 @@ class KonqiWindow(QWidget):
             except Exception: pass
         self.close()
 
-
                                                                              
           
                                                                              
@@ -1308,8 +1298,6 @@ class KonqiApp(QApplication):
         if not hasattr(self, '_notif_proc') or self._notif_proc is None:
             return
         try:
-            # Non-blocking: only read if data is actually waiting.
-            # readline() would block the Qt event loop if the pipe is empty.
             ready, _, _ = select.select([self._notif_proc.stdout], [], [], 0)
             if not ready:
                 return
@@ -1509,7 +1497,6 @@ class KonqiApp(QApplication):
         if self._tray: self._tray.hide()
         self.quit()
 
-
 def main():
     parser = argparse.ArgumentParser(description="Konqi Shimeji – Chaos Gremlin Edition")
     parser.add_argument("--debug",          action="store_true")
@@ -1528,8 +1515,6 @@ def main():
     if args.quiet:    cfg["quiet_mode"]    = True
     if args.no_chaos: cfg["chaos_mode"]    = False
 
-    # Wayland does not support client-side window positioning (move() is ignored).
-    # Force the XCB (X11) backend so the pet can actually walk around the screen.
     if sys.platform.startswith("linux") and "WAYLAND_DISPLAY" in os.environ:
         os.environ.setdefault("QT_QPA_PLATFORM", "xcb")
 
@@ -1546,7 +1531,6 @@ def main():
         app._loader.start()
 
     sys.exit(app.exec())
-
 
 if __name__ == "__main__":
     main()

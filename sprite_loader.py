@@ -35,14 +35,12 @@ SPRITE_FILES = {
     "base":  "konqi_base.png",
 }
 
-
                                                                              
          
                                                                              
 
 def _make_canvas(w: int, h: int) -> Image.Image:
     return Image.new("RGBA", (w, h), (0, 0, 0, 0))
-
 
 def _load_sprite(assets_dir: Path, key: str) -> Image.Image:
     fname = SPRITE_FILES.get(key, SPRITE_FILES["base"])
@@ -57,7 +55,6 @@ def _load_sprite(assets_dir: Path, key: str) -> Image.Image:
         img = img.crop(bbox)
     ratio = SPRITE_HEIGHT / img.height
     return img.resize((max(1, int(img.width * ratio)), SPRITE_HEIGHT), Image.LANCZOS)
-
 
                                                                              
                   
@@ -80,7 +77,6 @@ def gen_walk_frames(base: Image.Image, n: int = 8) -> List[Image.Image]:
         frames.append(c)
     return frames
 
-
 def gen_idle_frames(base: Image.Image, n: int = 8) -> List[Image.Image]:
     """Breathing pulse + subtle sway."""
     w, h = base.size
@@ -98,7 +94,6 @@ def gen_idle_frames(base: Image.Image, n: int = 8) -> List[Image.Image]:
         frames.append(c)
     return frames
 
-
 def gen_look_around_frames(base: Image.Image, n: int = 10) -> List[Image.Image]:
     """Horizontal squish to simulate head turning left then right."""
     w, h = base.size
@@ -113,7 +108,6 @@ def gen_look_around_frames(base: Image.Image, n: int = 10) -> List[Image.Image]:
         c.paste(f, ((w+6-nw2)//2, 2), f)
         frames.append(c)
     return frames
-
 
 def gen_wave_frames(base: Image.Image, n: int = 10) -> List[Image.Image]:
     """Celebratory hop + sway — looks like waving or bouncing."""
@@ -131,7 +125,6 @@ def gen_wave_frames(base: Image.Image, n: int = 10) -> List[Image.Image]:
         frames.append(c)
     return frames
 
-
 def gen_sleep_frames(base: Image.Image, n: int = 8) -> List[Image.Image]:
     """Gentle breathing — nose bubble is baked into the sprite."""
     w, h = base.size
@@ -148,7 +141,6 @@ def gen_sleep_frames(base: Image.Image, n: int = 8) -> List[Image.Image]:
         c.paste(frame, (2, ch - nh2), frame)
         frames.append(c)
     return frames
-
 
 def gen_climb_frames(base: Image.Image, n: int = 8,
                      direction: str = "right") -> Tuple[List[Image.Image], int, int]:
@@ -209,7 +201,6 @@ def gen_climb_frames(base: Image.Image, n: int = 8,
 
     return frames, CANVAS_W, CANVAS_H
 
-
 def gen_fall_frames(base: Image.Image, n: int = 6) -> List[Image.Image]:
     """Progressive stretch + rotation as Konqi falls."""
     w, h = base.size
@@ -226,7 +217,6 @@ def gen_fall_frames(base: Image.Image, n: int = 6) -> List[Image.Image]:
         frames.append(frame)
     return frames
 
-
 def gen_drag_frames(base: Image.Image, n: int = 6) -> List[Image.Image]:
     """Wide panic wobble + brightness flash."""
     frames = []
@@ -242,7 +232,6 @@ def gen_drag_frames(base: Image.Image, n: int = 6) -> List[Image.Image]:
         frame = ImageEnhance.Brightness(frame).enhance(1.12)
         frames.append(frame)
     return frames
-
 
 def gen_fly_frames(base: Image.Image, n: int = 8) -> List[Image.Image]:
     """Idle sprite bobs and tilts on a smooth arc."""
@@ -261,7 +250,6 @@ def gen_fly_frames(base: Image.Image, n: int = 8) -> List[Image.Image]:
         c.paste(frame, ((w+6-frame.width)//2, 7+dy), frame)
         frames.append(c)
     return frames
-
 
 def gen_stretch_frames(base: Image.Image, n: int = 8) -> List[Image.Image]:
     """Full squash-and-stretch yawn cycle."""
@@ -283,7 +271,6 @@ def gen_stretch_frames(base: Image.Image, n: int = 8) -> List[Image.Image]:
         c.paste(s, ((c.width-nw2)//2, c.height-nh2), s)
         frames.append(c)
     return frames
-
 
                                                                              
             
@@ -322,7 +309,6 @@ def _build_animations(assets_dir: Path) -> Dict[str, List[Image.Image]]:
         "_climb_size":  [Image.new("RGBA", (ccw, cch))],
     }
 
-
 def _save_frames(animations: Dict[str, List[Image.Image]],
                  assets_dir: Path) -> None:
     frames_dir = assets_dir / "frames"
@@ -334,7 +320,6 @@ def _save_frames(animations: Dict[str, List[Image.Image]],
             old.unlink(missing_ok=True)
         for idx, frame in enumerate(frames):
             frame.save(anim_dir / f"{idx:02d}.png", "PNG")
-
 
 def load_sprites(assets_dir: Optional[Path] = None,
                  force_download: bool = False) -> Dict[str, List[Image.Image]]:
@@ -360,7 +345,6 @@ def load_sprites(assets_dir: Optional[Path] = None,
     _save_frames(animations, assets_dir)
     return animations
 
-
 def _build_from_single(base: Image.Image,
                        assets_dir: Path) -> Dict[str, List[Image.Image]]:
     walk_l_raw = gen_walk_frames(base)
@@ -385,7 +369,6 @@ def _build_from_single(base: Image.Image,
     }
     _save_frames(anims, assets_dir)
     return anims
-
 
 def get_cached_animations(assets_dir: Optional[Path] = None
                           ) -> Optional[Dict[str, List[Image.Image]]]:
@@ -426,7 +409,6 @@ def get_cached_animations(assets_dir: Optional[Path] = None
 
     log.info("Loaded cached frames from %s", frames_dir)
     return animations
-
 
 def get_climb_canvas_size(animations: Dict[str, List[Image.Image]]) -> Tuple[int, int]:
     if "_climb_size" in animations:

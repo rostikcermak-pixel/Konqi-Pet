@@ -29,15 +29,10 @@ from typing import Optional
 
 log = logging.getLogger("konqi.sound")
 
-SAMPLE_RATE = 22050  # 22 kHz is plenty for short bleeps/chirps (half the samples!)
-
-
-# ───────────────────────── WAV encoding ─────────────────────────
+SAMPLE_RATE = 22050
 
 def _wav_bytes(samples_float: list[float], rate: int = SAMPLE_RATE) -> bytes:
     """Convert a list of floats [-1..1] to a complete WAV file as bytes."""
-    # Use array module for fast bulk conversion instead of struct.pack on a
-    # generator of thousands of ints
     pcm = array.array('h', (max(-32768, min(32767, int(s * 32767)))
                             for s in samples_float))
     data_size = len(pcm) * 2
@@ -49,7 +44,6 @@ def _wav_bytes(samples_float: list[float], rate: int = SAMPLE_RATE) -> bytes:
         b'data', data_size,
     )
     return hdr + pcm.tobytes()
-
 
 def _env_array(n: int, attack: float = 0.01, release: float = 0.15) -> list[float]:
     """Pre-compute the full envelope as a list — called once per sound, not per sample."""
@@ -72,16 +66,12 @@ def _env_array(n: int, attack: float = 0.01, release: float = 0.15) -> list[floa
             env[i] = 1.0
     return env
 
-
-# ───────────────────────── Waveform generators ─────────────────────────
-
 def _sine_wave(freq: float, duration: float, amplitude: float = 0.4) -> list[float]:
     n = int(SAMPLE_RATE * duration)
     env = _env_array(n)
     two_pi_f_over_sr = 2.0 * math.pi * freq / SAMPLE_RATE
-    sin = math.sin  # local ref avoids repeated global lookup
+    sin = math.sin
     return [amplitude * sin(two_pi_f_over_sr * i) * env[i] for i in range(n)]
-
 
 def _chirp_wave(f0: float, f1: float, duration: float, amplitude: float = 0.35) -> list[float]:
     n = int(SAMPLE_RATE * duration)
@@ -99,22 +89,15 @@ def _chirp_wave(f0: float, f1: float, duration: float, amplitude: float = 0.35) 
         samples[i] = amplitude * sin(phase) * env[i]
     return samples
 
-
 def _noise_wave(duration: float, amplitude: float = 0.15) -> list[float]:
     n = int(SAMPLE_RATE * duration)
     env = _env_array(n)
     uniform = random.uniform
     return [amplitude * uniform(-1.0, 1.0) * env[i] for i in range(n)]
 
-
 def _mix_waves(*waves: list[float]) -> list[float]:
     inv_count = 1.0 / len(waves)
     return [sum(samples) * inv_count for samples in zip(*waves)]
-
-
-# ───────────────────────── Cached sound generators ─────────────────────────
-# Each sound is generated ONCE and the resulting WAV bytes are cached forever.
-# These are tiny (a few KB each), so memory is not a concern.
 
 @lru_cache(maxsize=4)
 def _footstep(step_parity: int) -> bytes:
@@ -149,12 +132,10 @@ def _release_drop() -> bytes:
 def _bubble_pop() -> bytes:
     return _wav_bytes(_chirp_wave(900, 1400, 0.07, 0.24))
 
-# Noise is random so we pre-generate a small pool and pick from it
 _SCRIBBLE_POOL: list[bytes] = []
 
 def _scribble() -> bytes:
     if not _SCRIBBLE_POOL:
-        # Pre-generate 4 variants — still sounds random enough
         for _ in range(4):
             _SCRIBBLE_POOL.append(_wav_bytes(_noise_wave(0.18, 0.14)))
     return random.choice(_SCRIBBLE_POOL)
@@ -165,23 +146,18 @@ def _twin_discord() -> bytes:
     b = _sine_wave(466, 0.22, 0.16)
     return _wav_bytes(_mix_waves(a, b))
 
-
-# ───────────────────────── Player detection ─────────────────────────
-
 def _find_player() -> Optional[str]:
     """Return the first available audio player command."""
     candidates = ["pw-play", "paplay", "aplay", "ffplay", "mpv", "cvlc"]
     for cmd in candidates:
-        if shutil.which(cmd):  # no subprocess needed!
+        if shutil.which(cmd):
             log.info("Sound player: %s", cmd)
             return cmd
     log.warning("No audio player found — sounds disabled")
     return None
 
-
 _PLAYER: Optional[str] = None
 _PLAYER_CHECKED = False
-
 
 def _get_player() -> Optional[str]:
     global _PLAYER, _PLAYER_CHECKED
@@ -190,10 +166,6 @@ def _get_player() -> Optional[str]:
         _PLAYER_CHECKED = True
     return _PLAYER
 
-
-# ───────────────────────── Playback ─────────────────────────
-
-# Build the command list once per player, not once per play call
 _CMD_BUILDERS: dict[str, callable] = {
     "pw-play": lambda f: ["pw-play", f],
     "paplay":  lambda f: ["paplay", f],
@@ -202,7 +174,6 @@ _CMD_BUILDERS: dict[str, callable] = {
     "mpv":     lambda f: ["mpv", "--no-video", "--really-quiet", f],
     "cvlc":    lambda f: ["cvlc", "--play-and-exit", "--intf", "dummy", f],
 }
-
 
 def _play_wav_async(wav: bytes) -> None:
     """Write WAV to a temp file and play it in a daemon thread."""
@@ -239,9 +210,6 @@ def _play_wav_async(wav: bytes) -> None:
     t = threading.Thread(target=_worker, daemon=True)
     t.start()
 
-
-# ───────────────────────── Public API ─────────────────────────
-
 class SoundEngine:
     def __init__(self, enabled: bool = False) -> None:
         self.enabled = enabled
@@ -252,7 +220,7 @@ class SoundEngine:
             _play_wav_async(wav)
 
     def footstep(self) -> None:
-        self._play(_footstep(self._step_idx % 2))  # only 2 variants, cache both
+        self._play(_footstep(self._step_idx % 2))
         self._step_idx += 1
 
     def bounce(self)       -> None: self._play(_bounce())
