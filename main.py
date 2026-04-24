@@ -49,6 +49,7 @@ from sprite_loader import load_sprites, get_cached_animations
 from chaos_gremlin import GremlinBrain, GremlinEvent
 from sound_engine  import SoundEngine
 from dialog_system import DialogSystem
+from pet_state     import PetState, PetStateMachine
 
 try:
     import psutil
@@ -507,11 +508,11 @@ class InteractiveBubble(QWidget):
         )
         btn_row = QHBoxLayout()
         btn_row.setSpacing(6)
-        for resp in dialog["responses"]:
-            b = QPushButton(resp["text"])
+        for choice in dialog["choices"]:
+            b = QPushButton(choice["text"])
             b.setStyleSheet(btn_style)
             b.setFixedHeight(30)
-            b.clicked.connect(lambda _=False, o=resp["outcome"]: self._respond(o))
+            b.clicked.connect(lambda _=False, r=choice["result"]: self._respond(r))
             btn_row.addWidget(b)
         outer.addLayout(btn_row)
 
@@ -588,6 +589,7 @@ class KonqiWindow(QWidget):
         self._cfg           = config
         self._anims         = animations
         self._dialog_system = parent_app.dialog_system
+        self._pet_state     = parent_app.pet_state
         self._screen  = screen_rect
         self._gremlin = gremlin
 
@@ -711,13 +713,22 @@ class KonqiWindow(QWidget):
                 self._show_bubble(ev.text)
             elif ev.kind == "chaos_action":
                 self._do_chaos_action(ev.action)
-        self._dialog_system.tick()
-        if random.random() < 0.10:
+        # ----------------------------------------------------------
+        # State tick: auto-returns the pet to IDLE after its duration
+        # expires. This is where state-based behavior re-syncs so the
+        # main loop never blocks.
+        # ----------------------------------------------------------
+        if self._pet_state.tick():
+            self._apply_state_behavior()
+        if self._pet_state.dialog_ready() and random.random() < 0.30:
             self._trigger_interactive_dialog()
 
     def _sync_physics(self):
+        # State-driven speed is applied to the physics engine here, once
+        # per tick. The physics engine reads this value via its own state.
         s = self._physics.state
-        s.behavior_mode = self._cfg["behavior_mode"]
+        s.behavior_mode    = self._cfg["behavior_mode"]
+        s.speed_multiplier = self._pet_state.speed_multiplier
         anim_st = self._anim.state
         if anim_st == State.WALK_RIGHT: s.walk_dir = 1
         elif anim_st == State.WALK_LEFT: s.walk_dir = -1
@@ -1240,34 +1251,52 @@ class KonqiWindow(QWidget):
                      self._anim.state, stack_index=stack_idx)
         self._active_bubbles = live + [b]
 
+    # ------------------------------------------------------------------
+    # Dialog + decision system
+    # ------------------------------------------------------------------
+    # Rules enforced here:
+    #   * Only ONE interactive dialog visible at a time (checked via
+    #     _interactive_bubble.is_alive()).
+    #   * Per-state cooldown is enforced by PetStateMachine.dialog_ready()
+    #     so the player is never spammed with popups.
+    #   * The dialog widget is non-blocking: it runs on the Qt event loop
+    #     and auto-dismisses after a timeout.
+
     def _trigger_interactive_dialog(self) -> None:
         if self._quiet_mode:
             return
         if self._interactive_bubble and self._interactive_bubble.is_alive():
             return
-        dialog = self._dialog_system.pick_dialog()
-        bubble = InteractiveBubble(dialog, self._screen, self._on_dialog_response)
+        if not self._pet_state.dialog_ready():
+            return
+        dialog = self._dialog_system.pick()
+        bubble = InteractiveBubble(dialog, self._screen, self._on_dialog_choice)
         bubble.reposition(self.x(), self.y(), self.width(), self.height())
         self._interactive_bubble = bubble
+        self._pet_state.note_dialog_shown()
 
-    def _on_dialog_response(self, outcome: str) -> None:
-        reaction = self._dialog_system.apply_response(outcome)
-        self._show_bubble(reaction, duration_ms=3500)
-        self._apply_emotion_effects()
+    def _on_dialog_choice(self, result: str) -> None:
+        new_state = DialogSystem.result_to_state(result)
+        self._pet_state.set(new_state)
+        self._show_bubble(DialogSystem.reaction(result), duration_ms=3000)
+        self._apply_state_behavior()
 
-    def _apply_emotion_effects(self) -> None:
-        mood = self._dialog_system.mood
-        if mood == "ecstatic":
+    # ------------------------------------------------------------------
+    # Behavior reactions driven purely by PetState
+    # ------------------------------------------------------------------
+    # Called whenever the state changes. Does not loop, does not recurse.
+    # All visual effects are queued on the existing QTimer-driven loop.
+
+    def _apply_state_behavior(self) -> None:
+        st = self._pet_state.state
+        self._physics.state.vx = 0.0  # reset any drift from previous state
+        if st is PetState.HAPPY:
             self._anim.set_state(State.WAVE, force=True)
-        elif mood == "furious":
-            self._do_chaos_action(random.choice(["shake", "teleport", "spin"]))
-        elif mood == "grumpy":
-            if random.random() < 0.5:
-                self._do_chaos_action("shake")
-        if hasattr(self, '_gremlin_timer'):
-            self._gremlin_timer.setInterval(
-                self._dialog_system.gremlin_timer_interval_ms()
-            )
+        elif st is PetState.ANGRY:
+            self._do_chaos_action("shake")
+        elif st is PetState.SATISFIED:
+            self._anim.set_state(State.STRETCH, force=True)
+        # IDLE: just let the animation state machine pick its next variant.
 
     def _update_sprite(self):
         img = self._anim.current_image
@@ -1367,6 +1396,7 @@ class KonqiApp(QApplication):
         self._anims = None
         self._gremlin = GremlinBrain()
         self.dialog_system = DialogSystem()
+        self.pet_state     = PetStateMachine()
         self._loading_label = None
         self._show_loading()
         self._loader = SpriteLoaderThread(force=False)
