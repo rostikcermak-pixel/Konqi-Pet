@@ -7,7 +7,7 @@ Usage:
     python3 main.py [--debug] [--hyper] [--count N] [--quiet] [--no-chaos]
 """
 from __future__ import annotations
-import argparse, json, logging, math, math, os, random, sys, time
+import argparse, json, logging, math, os, random, select, subprocess, sys, time
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -484,6 +484,7 @@ class KonqiWindow(QWidget):
                                   max(screen_rect.x+51, screen_rect.right-150))
         self._physics = PhysicsEngine(screen_rect, initial_x=float(start_x),
                                        initial_y=float(screen_rect.bottom-120))
+        self._physics.state.on_ground = False  # let the pet fall to the floor on spawn
                                                                             
         try:
             from sprite_loader import get_climb_canvas_size
@@ -544,8 +545,6 @@ class KonqiWindow(QWidget):
             self.move(nx, ny)
         if frame_changed:
             self._update_sprite()
-                                                                  
-        if frame_changed:
             if self._anim.state in (State.WALK_RIGHT, State.WALK_LEFT):
                 if self._anim._frame_idx % 4 == 0: self._sound.footstep()
             elif self._anim.state in (State.CLIMB_RIGHT, State.CLIMB_LEFT):
@@ -608,6 +607,15 @@ class KonqiWindow(QWidget):
                                                            
         if anim_st == State.IDLE:
             s.vx = 0.0
+            s.climbing = False
+            if s.on_ground:
+                s.vy = 0.0
+                return
+            # Not on ground while IDLE → apply gravity so pet falls to floor.
+            anim_key, _ = self._physics.update()
+            if anim_key == "fall":
+                self._anim.set_state(State.FALL)
+            return
 
         if anim_st in VOLUNTARY_PAUSE:
             s.vx = 0.0
@@ -1300,6 +1308,11 @@ class KonqiApp(QApplication):
         if not hasattr(self, '_notif_proc') or self._notif_proc is None:
             return
         try:
+            # Non-blocking: only read if data is actually waiting.
+            # readline() would block the Qt event loop if the pipe is empty.
+            ready, _, _ = select.select([self._notif_proc.stdout], [], [], 0)
+            if not ready:
+                return
             line = self._notif_proc.stdout.readline()
             if line and 'Notify' in line:
                 self._gremlin.notify_system_notification()
@@ -1478,10 +1491,17 @@ class KonqiApp(QApplication):
         try:
             last_line = None
             if self._konqis:
-                                                              
+
                 bubbles = [b for b in self._konqis[0]._active_bubbles if b.is_alive()]
                 if bubbles: last_line = bubbles[-1]._text
             self._gremlin.save_session_memory(last_line=last_line)
+        except Exception: pass
+        try:
+            if hasattr(self, '_notif_timer') and self._notif_timer:
+                self._notif_timer.stop()
+            if hasattr(self, '_notif_proc') and self._notif_proc:
+                self._notif_proc.terminate()
+                self._notif_proc = None
         except Exception: pass
         if self._cpu_monitor: self._cpu_monitor.stop()
         for k in list(self._konqis): k.close_konqi()
@@ -1507,6 +1527,11 @@ def main():
     if args.count:    cfg["spawn_count"]   = max(1, args.count)
     if args.quiet:    cfg["quiet_mode"]    = True
     if args.no_chaos: cfg["chaos_mode"]    = False
+
+    # Wayland does not support client-side window positioning (move() is ignored).
+    # Force the XCB (X11) backend so the pet can actually walk around the screen.
+    if sys.platform.startswith("linux") and "WAYLAND_DISPLAY" in os.environ:
+        os.environ.setdefault("QT_QPA_PLATFORM", "xcb")
 
     if _QT6:
         QApplication.setHighDpiScaleFactorRoundingPolicy(
