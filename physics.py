@@ -73,6 +73,7 @@ class PhysicsState:
                                                              
     climb_canvas_w: int = 96
     behavior_mode: str = "calm"
+    speed_multiplier: float = 1.0  # applied on top of behavior_mode speed
 
 class PhysicsEngine:
     """
@@ -176,7 +177,8 @@ class PhysicsEngine:
 
     def _update_walk(self, old_dir: int) -> Tuple[str, bool]:
         s = self.state
-        speed = HYPER_WALK_SPEED if s.behavior_mode == "hyper" else WALK_SPEED
+        base = HYPER_WALK_SPEED if s.behavior_mode == "hyper" else WALK_SPEED
+        speed = base * max(0.1, s.speed_multiplier)
         s.x += speed * s.walk_dir
         dir_changed = (s.walk_dir != old_dir)
         sw = s.sprite_w
