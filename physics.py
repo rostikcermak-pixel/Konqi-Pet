@@ -24,7 +24,6 @@ except Exception:
     _EWMH_AVAILABLE = False
     log.info("python-ewmh not available – climbing screen edges only")
 
-
                                                                              
            
                                                                              
@@ -35,7 +34,6 @@ WALK_SPEED       = 2.0
 HYPER_WALK_SPEED = 4.0
 CLIMB_SPEED      = 2.2                                                
 BOUNCE_DAMPING   = 0.3
-
 
 @dataclass
 class Rect:
@@ -59,7 +57,6 @@ class Rect:
     def contains_y(self, py: int) -> bool:
         return self.top <= py <= self.bottom
 
-
 @dataclass
 class PhysicsState:
     x: float = 0.0
@@ -76,7 +73,6 @@ class PhysicsState:
                                                              
     climb_canvas_w: int = 96
     behavior_mode: str = "calm"
-
 
 class PhysicsEngine:
     """
@@ -288,7 +284,6 @@ class PhysicsEngine:
         except Exception as exc:
             log.debug("Window refresh failed: %s", exc)
             self._windows = []
-
 
                                                                              
            
