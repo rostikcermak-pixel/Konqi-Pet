@@ -7,10 +7,17 @@ This module is pure data + selection logic. No Qt, no threads, no timers.
 """
 from __future__ import annotations
 
+import getpass
 import random
 from typing import Dict, List, Optional
 
 from pet_state import PetState
+
+_USERNAME: str = getpass.getuser()
+
+
+def format_text(text: str) -> str:
+    return text.replace("{user}", _USERNAME)
 
 # --------------------------------------------------------------------------
 # Dialog data
@@ -20,49 +27,49 @@ from pet_state import PetState
 
 DIALOGS: List[Dict] = [
     {
-        "text": "Do you want to feed me?",
+        "text": "Hey {user}, do you want to feed me?",
         "choices": [
             {"text": "Yes",  "result": "happy"},
             {"text": "No",   "result": "angry"},
         ],
     },
     {
-        "text": "I'm tired. Can I take a break?",
+        "text": "I'm tired, {user}. Can I take a break?",
         "choices": [
             {"text": "Sure, rest", "result": "satisfied"},
             {"text": "Keep going", "result": "angry"},
         ],
     },
     {
-        "text": "Am I doing a good job?",
+        "text": "Am I doing a good job, {user}?",
         "choices": [
             {"text": "You are great", "result": "happy"},
             {"text": "Not really",    "result": "angry"},
         ],
     },
     {
-        "text": "Want to play a game?",
+        "text": "Want to play a game, {user}?",
         "choices": [
             {"text": "Absolutely",   "result": "happy"},
             {"text": "Maybe later",  "result": "satisfied"},
         ],
     },
     {
-        "text": "Should I keep watching you work?",
+        "text": "Should I keep watching you work, {user}?",
         "choices": [
             {"text": "Yes, stay",    "result": "satisfied"},
             {"text": "Leave me",     "result": "angry"},
         ],
     },
     {
-        "text": "I think you should take a walk.",
+        "text": "I think you should take a walk, {user}.",
         "choices": [
             {"text": "Good idea",    "result": "satisfied"},
             {"text": "Mind your business", "result": "angry"},
         ],
     },
     {
-        "text": "Am I your favourite thing on screen?",
+        "text": "Am I your favourite thing on screen, {user}?",
         "choices": [
             {"text": "Of course",    "result": "happy"},
             {"text": "Not even close", "result": "angry"},
@@ -76,16 +83,16 @@ DIALOGS: List[Dict] = [
         ],
     },
     {
-        "text": "Do you want me to be quiet for a while?",
+        "text": "Do you need me to be quiet for a while, {user}?",
         "choices": [
             {"text": "Yes please",   "result": "satisfied"},
             {"text": "Keep talking", "result": "happy"},
         ],
     },
     {
-        "text": "I have something important to say.",
+        "text": "I've been watching you, {user}. Something's on your mind.",
         "choices": [
-            {"text": "I'm listening", "result": "satisfied"},
+            {"text": "I'm fine",      "result": "satisfied"},
             {"text": "Not now",       "result": "angry"},
         ],
     },
@@ -123,7 +130,8 @@ class DialogSystem:
         self._recent.append(idx)
         if len(self._recent) > min(4, n - 1):
             self._recent.pop(0)
-        return DIALOGS[idx]
+        entry = DIALOGS[idx]
+        return {"text": format_text(entry["text"]), "choices": entry["choices"]}
 
     @staticmethod
     def result_to_state(result: str) -> PetState:
