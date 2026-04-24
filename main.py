@@ -48,6 +48,7 @@ from autostart     import is_enabled as autostart_is_enabled
 from sprite_loader import load_sprites, get_cached_animations
 from chaos_gremlin import GremlinBrain, GremlinEvent
 from sound_engine  import SoundEngine
+from dialog_system import DialogSystem
 
 try:
     import psutil
@@ -452,15 +453,141 @@ class ScribbleWidget(QWidget):
                                                                              
              
                                                                              
+
+
+class InteractiveBubble(QWidget):
+    """
+    Speech bubble with two clickable response buttons.
+
+    Unlike DialogueBubble this widget receives mouse input (no
+    WindowTransparentForInput) so the player can click the buttons.
+    The on_response callback receives the outcome string: "happy",
+    "satisfied", or "angry".
+    """
+
+    _BG      = "#1a0a2e"
+    _BORDER  = "#CC5DE8"
+    _TEXT    = "#FFD93D"
+    _BTN_BG  = "#2D1B4E"
+    _BTN_HOV = "#3D2B6E"
+    _TIMEOUT_MS = 15_000
+
+    def __init__(self, dialog: dict, screen_rect: Rect, on_response) -> None:
+        super().__init__()
+        flags = (Qt.WindowType.FramelessWindowHint |
+                 Qt.WindowType.WindowStaysOnTopHint |
+                 Qt.WindowType.Tool)
+        if _QT6:
+            flags |= Qt.WindowType.X11BypassWindowManagerHint
+        self.setWindowFlags(flags)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
+
+        self._screen      = screen_rect
+        self._on_response = on_response
+        self._dead        = False
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(12, 12, 12, 18)
+        outer.setSpacing(8)
+
+        lbl = QLabel(dialog["text"])
+        lbl.setWordWrap(True)
+        lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lbl.setFont(QFont("monospace", 9, QFont.Weight.Bold))
+        lbl.setStyleSheet(f"color:{self._TEXT}; background:transparent;")
+        lbl.setFixedWidth(210)
+        outer.addWidget(lbl)
+
+        btn_style = (
+            f"QPushButton{{background:{self._BTN_BG};color:{self._TEXT};"
+            f"border:1px solid {self._BORDER};border-radius:6px;"
+            f"padding:5px 8px;font-size:9pt;font-family:monospace;}}"
+            f"QPushButton:hover{{background:{self._BTN_HOV};}}"
+        )
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(6)
+        for resp in dialog["responses"]:
+            b = QPushButton(resp["text"])
+            b.setStyleSheet(btn_style)
+            b.setFixedHeight(30)
+            b.clicked.connect(lambda _=False, o=resp["outcome"]: self._respond(o))
+            btn_row.addWidget(b)
+        outer.addLayout(btn_row)
+
+        self.adjustSize()
+        self.hide()
+
+        self._timeout = QTimer(self)
+        self._timeout.setSingleShot(True)
+        self._timeout.timeout.connect(self._dismiss)
+        self._timeout.start(self._TIMEOUT_MS)
+
+    def paintEvent(self, ev) -> None:
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        w, h = self.width(), self.height()
+        tail = 10
+        bubble_h = h - tail
+
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(QBrush(QColor(0, 0, 0, 60)))
+        p.drawRoundedRect(3, 3, w - 2, bubble_h - 2, 10, 10)
+
+        p.setBrush(QBrush(QColor(self._BG)))
+        p.setPen(QPen(QColor(self._BORDER), 1.5))
+        p.drawRoundedRect(0, 0, w - 1, bubble_h - 1, 10, 10)
+
+        cx = w // 2
+        path = QPainterPath()
+        path.moveTo(cx - 7, bubble_h - 1)
+        path.lineTo(cx + 7, bubble_h - 1)
+        path.lineTo(cx,     h - 1)
+        path.closeSubpath()
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(QBrush(QColor(self._BG)))
+        p.drawPath(path)
+        p.end()
+
+    def reposition(self, kx: int, ky: int, kw: int, kh: int) -> None:
+        bx = kx + kw // 2 - self.width() // 2
+        by = ky - self.height() - 6
+        scr = self._screen
+        bx = max(scr.x, min(bx, scr.right  - self.width()))
+        by = max(scr.y, min(by, scr.bottom - self.height()))
+        self.move(bx, by)
+        if not self.isVisible():
+            self.show()
+
+    def _respond(self, outcome: str) -> None:
+        if self._dead:
+            return
+        self._dead = True
+        self._timeout.stop()
+        self.hide()
+        self.deleteLater()
+        self._on_response(outcome)
+
+    def _dismiss(self) -> None:
+        if self._dead:
+            return
+        self._dead = True
+        self.hide()
+        self.deleteLater()
+
+    def is_alive(self) -> bool:
+        return not self._dead
+
 class KonqiWindow(QWidget):
     spawn_requested = pyqtSignal()
     exit_requested  = pyqtSignal()
 
     def __init__(self, animations, screen_rect, config, parent_app, gremlin):
         super().__init__()
-        self._app_ref = parent_app
-        self._cfg     = config
-        self._anims   = animations
+        self._app_ref       = parent_app
+        self._cfg           = config
+        self._anims         = animations
+        self._dialog_system = parent_app.dialog_system
         self._screen  = screen_rect
         self._gremlin = gremlin
 
@@ -495,6 +622,7 @@ class KonqiWindow(QWidget):
         self._drift_target_x: Optional[float] = None
         self._drift_speed   = 0.0
         self._active_bubbles: List[DialogueBubble] = []
+        self._interactive_bubble: Optional[InteractiveBubble] = None
         self._last_tick_time = time.time()
         self._sound = SoundEngine(enabled=config.get('sound_effects', False))
         self._flee_active = False
@@ -558,6 +686,8 @@ class KonqiWindow(QWidget):
         self._active_bubbles = live
         for stack_idx, b in enumerate(reversed(live)):
             b.reposition(kx, ky, kw, kh, cur_state, stack_index=stack_idx)
+        if self._interactive_bubble and self._interactive_bubble.is_alive():
+            self._interactive_bubble.reposition(kx, ky, kw, kh)
 
     @pyqtSlot()
     def _gremlin_tick(self):
@@ -581,6 +711,9 @@ class KonqiWindow(QWidget):
                 self._show_bubble(ev.text)
             elif ev.kind == "chaos_action":
                 self._do_chaos_action(ev.action)
+        self._dialog_system.tick()
+        if random.random() < 0.10:
+            self._trigger_interactive_dialog()
 
     def _sync_physics(self):
         s = self._physics.state
@@ -1101,12 +1234,40 @@ class KonqiWindow(QWidget):
         if self._quiet_mode: return
         self._sound.bubble_pop()
         b = DialogueBubble(text, self._screen, duration_ms)
-                                                        
         live = [x for x in self._active_bubbles if x.is_alive()]
-        stack_idx = len(live)                                           
+        stack_idx = len(live)
         b.reposition(self.x(), self.y(), self.width(), self.height(),
                      self._anim.state, stack_index=stack_idx)
         self._active_bubbles = live + [b]
+
+    def _trigger_interactive_dialog(self) -> None:
+        if self._quiet_mode:
+            return
+        if self._interactive_bubble and self._interactive_bubble.is_alive():
+            return
+        dialog = self._dialog_system.pick_dialog()
+        bubble = InteractiveBubble(dialog, self._screen, self._on_dialog_response)
+        bubble.reposition(self.x(), self.y(), self.width(), self.height())
+        self._interactive_bubble = bubble
+
+    def _on_dialog_response(self, outcome: str) -> None:
+        reaction = self._dialog_system.apply_response(outcome)
+        self._show_bubble(reaction, duration_ms=3500)
+        self._apply_emotion_effects()
+
+    def _apply_emotion_effects(self) -> None:
+        mood = self._dialog_system.mood
+        if mood == "ecstatic":
+            self._anim.set_state(State.WAVE, force=True)
+        elif mood == "furious":
+            self._do_chaos_action(random.choice(["shake", "teleport", "spin"]))
+        elif mood == "grumpy":
+            if random.random() < 0.5:
+                self._do_chaos_action("shake")
+        if hasattr(self, '_gremlin_timer'):
+            self._gremlin_timer.setInterval(
+                self._dialog_system.gremlin_timer_interval_ms()
+            )
 
     def _update_sprite(self):
         img = self._anim.current_image
@@ -1205,6 +1366,7 @@ class KonqiApp(QApplication):
         self._konqis: List[KonqiWindow] = []
         self._anims = None
         self._gremlin = GremlinBrain()
+        self.dialog_system = DialogSystem()
         self._loading_label = None
         self._show_loading()
         self._loader = SpriteLoaderThread(force=False)
