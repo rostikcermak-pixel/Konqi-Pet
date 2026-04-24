@@ -115,9 +115,6 @@ APP_CATEGORIES: Dict[str, List[str]] = {
     "calculator": [
         "kcalc", "gnome-calculator", "mate-calc", "speedcrunch", "qalculate",
     ],
-    "ai_tool": [
-        "ollama", "lm-studio", "jan", "koboldcpp", "text-generation-webui",
-    ],
     "debugger": [
         "gdb", "lldb", "valgrind", "ddd", "nemiver", "kdbg",
     ],
@@ -183,13 +180,6 @@ TITLE_REACTIONS: Dict[str, List[str]] = {
         "The thumbnail made it look more interesting than it is.",
         "Netflix. Where intentions go to die comfortably.",
         "Autoplay is on. It's been on this whole time.",
-    ],
-    "chatgpt": [
-        "Asking ChatGPT. Efficient. Slightly hollow. Mostly efficient.",
-        "ChatGPT tab open. Prompting it the same way three times.",
-        "The AI wrote it. You'll claim you wrote it. We both know.",
-        "Using AI to avoid thinking. Bold strategy.",
-        "The output is confidently wrong. You won't check. That's fine.",
     ],
     "gmail": [
         "Gmail open. Something's waiting. It's been waiting.",
@@ -398,13 +388,6 @@ DIALOGUES: Dict[str, List[str]] = {
         "How many VMs do you need? That's rhetorical. The answer is fewer.",
         "Nested virtualisation. You are a problem-solver in the worst possible way.",
         "That VM has 512MB of RAM allocated. It is not happy.",
-    ],
-    "ai_tool": [
-        "Asking an AI to do it. Efficient. Slightly sad. Mostly efficient.",
-        "Ollama at 100% CPU. The fans agree this was a bad idea.",
-        "You're prompting it the same way three times hoping for a different answer.",
-        "The AI wrote the code. You will claim you wrote the code. We both know.",
-        "Running a local LLM to avoid the cloud, on hardware that is now a space heater.",
     ],
     "debugger": [
         "The bug is in the last place you'll look. Specifically because you stop looking after finding it.",
