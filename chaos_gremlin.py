@@ -40,6 +40,45 @@ from typing import Dict, List, Optional, Tuple
 
 log = logging.getLogger("konqi.chaos")
 
+
+def detect_desktop_environment() -> str:
+    """Return a lowercase DE identifier: kde, gnome, xfce, i3, sway, or unknown."""
+    xdg = os.environ.get("XDG_CURRENT_DESKTOP", "").lower()
+    if xdg:
+        if "kde" in xdg or "plasma" in xdg:
+            return "kde"
+        if "gnome" in xdg:
+            return "gnome"
+        if "xfce" in xdg:
+            return "xfce"
+        if "i3" in xdg:
+            return "i3"
+        if "sway" in xdg:
+            return "sway"
+        if "lxqt" in xdg:
+            return "lxqt"
+        if "mate" in xdg:
+            return "mate"
+        if "cinnamon" in xdg:
+            return "cinnamon"
+        return xdg.split(":")[0]
+    session = os.environ.get("DESKTOP_SESSION", "").lower()
+    if "kde" in session or "plasma" in session:
+        return "kde"
+    if "gnome" in session:
+        return "gnome"
+    if "xfce" in session:
+        return "xfce"
+    if os.environ.get("KDE_FULL_SESSION"):
+        return "kde"
+    if os.environ.get("GNOME_DESKTOP_SESSION_ID"):
+        return "gnome"
+    return "unknown"
+
+
+_DETECTED_DE: str = detect_desktop_environment()
+
+
 try:
 
     import psutil
@@ -890,6 +929,50 @@ USELESS_TIPS = [
 
 ]
 
+REAL_PC_TIPS = [
+
+    "Real tip: Ctrl+R in bash reverse-searches your history. Stop retyping long commands.",
+
+    "Real tip: 'df -h' shows disk usage in human-readable format. You probably need it.",
+
+    "Real tip: 'journalctl -f' streams live system logs. Useful when something breaks.",
+
+    "Real tip: Middle-click a link to open it in a new tab. Works in most browsers.",
+
+    "Real tip: 'find . -name \"*.py\" -newer ref.py' finds files modified after a reference file.",
+
+    "Real tip: Set up SSH keys instead of typing passwords. Takes 2 minutes, saves thousands.",
+
+    "Real tip: 'rsync -av src/ dest/' is safer and faster than cp for large directory copies.",
+
+    "Real tip: tmux lets terminal sessions survive disconnects. Learn it once, thank yourself forever.",
+
+    "Real tip: 'grep -r pattern .' searches recursively. Add --include='*.py' to narrow it.",
+
+    "Real tip: 'lsblk' shows all storage devices without sudo. No excuses.",
+
+    "Real tip: xdg-open <file> opens anything with its default application. Works everywhere.",
+
+    "Real tip: Alt+F2 in KDE Plasma opens a run dialog. Faster than hunting the app menu.",
+
+    "Real tip: Ctrl+Shift+T reopens the last closed tab in most browsers. You're welcome.",
+
+    "Real tip: Aliases in .bashrc or .zshrc save repetitive typing. 'alias gs=\"git status\"' is a start.",
+
+    "Real tip: 'man <command>' has the actual manual. Not a summary. The full thing. Read it.",
+
+    "Real tip: 'history | grep <command>' finds that command you definitely ran last week.",
+
+    "Real tip: Use 'Ctrl+Z' to suspend a process, then 'fg' to bring it back.",
+
+    "Real tip: KDE Activities let you have separate wallpapers and pinned apps per project.",
+
+    "Real tip: 'systemctl status <service>' shows if a service is running and its last log lines.",
+
+    "Real tip: 'ss -tlnp' shows which ports are open. 'netstat' is older; 'ss' is the replacement.",
+
+]
+
 IDLE_TAUNTS = [
 
     "Still here. Still walking. Still waiting for you to do something interesting.",
@@ -1713,51 +1796,65 @@ def get_comfort_greeting(session_count: int, last_line: Optional[str]) -> Option
     ])
 
 def get_focused_window_name() -> Optional[str]:
-
     try:
-
         result = subprocess.run(
-
             ["xdotool", "getactivewindow", "getwindowname"],
-
-            capture_output=True, text=True, timeout=1
-
+            capture_output=True, text=True, timeout=1,
         )
-
-        return result.stdout.strip().lower() if result.returncode == 0 else None
-
+        if result.returncode == 0 and result.stdout.strip():
+            return result.stdout.strip().lower()
     except Exception:
-
         pass
 
-    try:
-
-        result = subprocess.run(
-
-            ["xprop", "-root", "_NET_ACTIVE_WINDOW"],
-
-            capture_output=True, text=True, timeout=1
-
-        )
-
-        if result.returncode == 0:
-
-            wid = result.stdout.split()[-1]
-
-            result2 = subprocess.run(
-
-                ["xprop", "-id", wid, "WM_NAME"],
-
-                capture_output=True, text=True, timeout=1
-
+    if _DETECTED_DE == "kde":
+        try:
+            r = subprocess.run(
+                ["qdbus", "org.kde.KWin", "/KWin", "activeWindow"],
+                capture_output=True, text=True, timeout=1,
             )
+            if r.returncode == 0 and r.stdout.strip():
+                wid = r.stdout.strip()
+                r2 = subprocess.run(
+                    ["xdotool", "getwindowname", wid],
+                    capture_output=True, text=True, timeout=1,
+                )
+                if r2.returncode == 0 and r2.stdout.strip():
+                    return r2.stdout.strip().lower()
+        except Exception:
+            pass
 
+    if _DETECTED_DE == "gnome":
+        try:
+            r = subprocess.run(
+                ["gdbus", "call", "--session",
+                 "--dest", "org.gnome.Shell",
+                 "--object-path", "/org/gnome/Shell",
+                 "--method", "org.gnome.Shell.Eval",
+                 "global.display.focus_window?.title ?? ''"],
+                capture_output=True, text=True, timeout=1,
+            )
+            if r.returncode == 0:
+                import re as _re
+                m = _re.search(r"'([^']*)'", r.stdout)
+                if m and m.group(1):
+                    return m.group(1).lower()
+        except Exception:
+            pass
+
+    try:
+        result = subprocess.run(
+            ["xprop", "-root", "_NET_ACTIVE_WINDOW"],
+            capture_output=True, text=True, timeout=1,
+        )
+        if result.returncode == 0:
+            wid = result.stdout.split()[-1]
+            result2 = subprocess.run(
+                ["xprop", "-id", wid, "WM_NAME"],
+                capture_output=True, text=True, timeout=1,
+            )
             if result2.returncode == 0:
-
                 return result2.stdout.lower()
-
     except Exception:
-
         pass
 
     return None
@@ -1952,7 +2049,9 @@ class GremlinBrain:
 
         if self._tip_cooldown <= 0:
 
-            self._emit(GremlinEvent(kind="tip", text=random.choice(USELESS_TIPS), priority=2))
+            tip_pool = REAL_PC_TIPS if random.random() < 0.35 else USELESS_TIPS
+
+            self._emit(GremlinEvent(kind="tip", text=random.choice(tip_pool), priority=2))
 
             self._tip_cooldown = random.uniform(120, 240)
 
@@ -1982,9 +2081,11 @@ class GremlinBrain:
 
                        "flee_cursor", "sit_on_window", "scribble", "summon_twin",
 
-                       "trip", "stare_spot", "freeze_glitch", "poem", "letter"]
+                       "trip", "stare_spot", "freeze_glitch", "poem", "letter",
 
-            weights = [8, 6, 6, 6, 6, 6, 10, 8, 8, 5, 8, 7, 6, 5, 5]
+                       "minimize_window"]
+
+            weights = [8, 6, 6, 6, 6, 6, 10, 8, 8, 5, 8, 7, 6, 5, 5, 4]
 
             action = random.choices(actions, weights=weights, k=1)[0]
 
