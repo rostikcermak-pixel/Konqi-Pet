@@ -358,9 +358,9 @@ class AnimationController:
 
             choices = [
 
-                (State.WALK_RIGHT,  38),
+                (State.WALK_RIGHT,  34),
 
-                (State.WALK_LEFT,   38),
+                (State.WALK_LEFT,   34),
 
                 (State.LOOK_AROUND,  8),
 
@@ -368,7 +368,7 @@ class AnimationController:
 
                 (State.STRETCH,      5),
 
-                (State.SLEEP,        3),
+                (State.SLEEP,       11),
 
                 (State.FLY,          1),
 
