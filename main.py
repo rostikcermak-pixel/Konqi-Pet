@@ -579,6 +579,264 @@ class InteractiveBubble(QWidget):
     def is_alive(self) -> bool:
         return not self._dead
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Tic-Tac-Toe mini-game
+# ─────────────────────────────────────────────────────────────────────────────
+
+class _TTTBoard(QWidget):
+    """Clickable 3×3 grid owned by TicTacToeWidget."""
+
+    CELL = 82
+
+    def __init__(self, game):
+        super().__init__(game)
+        self._game = game
+        self.setMouseTracking(True)
+        self._hover: Optional[int] = None
+        self.setFixedSize(self.CELL * 3 + 2, self.CELL * 3 + 2)
+
+    def mouseMoveEvent(self, ev):
+        x = ev.position().x() if _QT6 else ev.x()
+        y = ev.position().y() if _QT6 else ev.y()
+        col = int(x // self.CELL)
+        row = int(y // self.CELL)
+        self._hover = row * 3 + col if 0 <= col < 3 and 0 <= row < 3 else None
+        self.update()
+
+    def leaveEvent(self, ev):
+        self._hover = None
+        self.update()
+
+    def mousePressEvent(self, ev):
+        left = Qt.MouseButton.LeftButton if _QT6 else Qt.LeftButton
+        if ev.button() == left:
+            x = ev.position().x() if _QT6 else ev.x()
+            y = ev.position().y() if _QT6 else ev.y()
+            col, row = int(x // self.CELL), int(y // self.CELL)
+            if 0 <= col < 3 and 0 <= row < 3:
+                self._game._cell_clicked(row * 3 + col)
+
+    def paintEvent(self, ev):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        C = self.CELL
+        g = TicTacToeWidget
+        board = self._game._board
+        wins  = self._game._winning_cells
+
+        p.fillRect(0, 0, self.width(), self.height(), QColor(g.BG))
+
+        p.setPen(QPen(QColor(g.GRID), 2))
+        for i in range(1, 3):
+            p.drawLine(i * C, 0, i * C, C * 3)
+            p.drawLine(0, i * C, C * 3, i * C)
+
+        if self._hover is not None and self._game._active:
+            if board[self._hover] is None:
+                r2, c2 = self._hover // 3, self._hover % 3
+                p.setPen(Qt.PenStyle.NoPen)
+                p.setBrush(QBrush(QColor(255, 255, 255, 22)))
+                p.drawRect(c2 * C + 2, r2 * C + 2, C - 4, C - 4)
+
+        for idx in wins:
+            r2, c2 = idx // 3, idx % 3
+            p.setPen(Qt.PenStyle.NoPen)
+            p.setBrush(QBrush(QColor(255, 230, 0, 55)))
+            p.drawRect(c2 * C + 1, r2 * C + 1, C - 2, C - 2)
+
+        pad = 18
+        for i, val in enumerate(board):
+            if val is None:
+                continue
+            r2, c2 = i // 3, i % 3
+            cx = c2 * C + C // 2
+            cy = r2 * C + C // 2
+            if val == "X":
+                p.setPen(QPen(QColor(g.X_CLR), 6,
+                              Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+                p.drawLine(c2*C+pad, r2*C+pad, c2*C+C-pad, r2*C+C-pad)
+                p.drawLine(c2*C+C-pad, r2*C+pad, c2*C+pad, r2*C+C-pad)
+            else:
+                p.setPen(QPen(QColor(g.O_CLR), 6,
+                              Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+                p.setBrush(Qt.BrushStyle.NoBrush)
+                r3 = C // 2 - pad // 2
+                p.drawEllipse(cx - r3, cy - r3, r3 * 2, r3 * 2)
+
+        p.setPen(QPen(QColor(g.BORDER), 2))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawRect(0, 0, self.width() - 1, self.height() - 1)
+        p.end()
+
+
+class TicTacToeWidget(QWidget):
+    """Tic-tac-toe mini-game. Player = X, Konqi = O."""
+
+    BG     = "#1a0a2e"
+    BORDER = "#CC5DE8"
+    GRID   = "#3D2B6E"
+    X_CLR  = "#FF6B6B"
+    O_CLR  = "#FFD93D"
+    TXT    = "#FFD93D"
+    BTN_BG = "#2D1B4E"
+    BTN_HOV= "#3D2B6E"
+
+    WIN_COMBOS = [(0,1,2),(3,4,5),(6,7,8),(0,3,6),(1,4,7),(2,5,8),(0,4,8),(2,4,6)]
+
+    def __init__(self, screen_rect: Rect, on_game_over):
+        super().__init__()
+        flags = (Qt.WindowType.FramelessWindowHint |
+                 Qt.WindowType.WindowStaysOnTopHint |
+                 Qt.WindowType.Tool)
+        if _QT6:
+            flags |= Qt.WindowType.X11BypassWindowManagerHint
+        self.setWindowFlags(flags)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
+
+        self._screen       = screen_rect
+        self._on_game_over = on_game_over
+        self._board: List[Optional[str]] = [None] * 9
+        self._active       = True
+        self._winning_cells: List[int] = []
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(14, 14, 14, 14)
+        outer.setSpacing(8)
+
+        title = QLabel("Tic-Tac-Toe  (you = X,  Konqi = O)")
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        title.setFont(QFont("monospace", 9, QFont.Weight.Bold))
+        title.setStyleSheet(f"color:{self.TXT}; background:transparent;")
+        outer.addWidget(title)
+
+        self._board_widget = _TTTBoard(self)
+        outer.addWidget(self._board_widget, 0, Qt.AlignmentFlag.AlignCenter)
+
+        self._status_lbl = QLabel("Your turn (X)")
+        self._status_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._status_lbl.setFont(QFont("monospace", 9))
+        self._status_lbl.setStyleSheet(f"color:{self.TXT}; background:transparent;")
+        outer.addWidget(self._status_lbl)
+
+        btn_style = (
+            f"QPushButton{{background:{self.BTN_BG};color:{self.TXT};"
+            f"border:1px solid {self.BORDER};border-radius:6px;"
+            f"padding:5px 10px;font-size:9pt;font-family:monospace;}}"
+            f"QPushButton:hover{{background:{self.BTN_HOV};}}"
+        )
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(8)
+        for label, slot in [("Play Again", self._reset), ("Close", self._close_game)]:
+            b = QPushButton(label)
+            b.setStyleSheet(btn_style)
+            btn_row.addWidget(b)
+            b.clicked.connect(slot)
+        outer.addLayout(btn_row)
+
+        self.adjustSize()
+        bx = max(screen_rect.x, screen_rect.right - self.width() - 24)
+        by = max(screen_rect.y, screen_rect.y + 50)
+        self.move(bx, by)
+        self.show()
+
+    def paintEvent(self, ev):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(QBrush(QColor(0, 0, 0, 60)))
+        p.drawRoundedRect(3, 3, self.width() - 2, self.height() - 2, 12, 12)
+        p.setBrush(QBrush(QColor(self.BG)))
+        p.setPen(QPen(QColor(self.BORDER), 1.5))
+        p.drawRoundedRect(0, 0, self.width() - 1, self.height() - 1, 12, 12)
+        p.end()
+
+    def _cell_clicked(self, idx: int):
+        if not self._active or self._board[idx] is not None:
+            return
+        self._board[idx] = "X"
+        self._board_widget.update()
+        winner = self._check_winner()
+        if winner or None not in self._board:
+            self._handle_game_over(winner or "draw")
+            return
+        self._status_lbl.setText("Konqi thinking...")
+        QTimer.singleShot(350, self._ai_turn)
+
+    def _ai_turn(self):
+        move = self._best_move()
+        if move is not None:
+            self._board[move] = "O"
+            self._board_widget.update()
+        winner = self._check_winner()
+        if winner or None not in self._board:
+            self._handle_game_over(winner or "draw")
+            return
+        self._status_lbl.setText("Your turn (X)")
+
+    def _best_move(self) -> Optional[int]:
+        empty = [i for i, v in enumerate(self._board) if v is None]
+        if not empty:
+            return None
+        best_score, best = -1000, random.choice(empty)
+        for i in empty:
+            self._board[i] = "O"
+            score = self._minimax(list(self._board), False)
+            self._board[i] = None
+            if score > best_score:
+                best_score, best = score, i
+        return best
+
+    def _minimax(self, board: list, is_max: bool) -> int:
+        if self._win_board(board, "O"): return 10
+        if self._win_board(board, "X"): return -10
+        empty = [i for i, v in enumerate(board) if v is None]
+        if not empty: return 0
+        if is_max:
+            best = -1000
+            for i in empty:
+                board[i] = "O"; best = max(best, self._minimax(board, False)); board[i] = None
+            return best
+        else:
+            best = 1000
+            for i in empty:
+                board[i] = "X"; best = min(best, self._minimax(board, True)); board[i] = None
+            return best
+
+    def _win_board(self, board: list, p: str) -> bool:
+        return any(board[a] == board[b] == board[c] == p for a, b, c in self.WIN_COMBOS)
+
+    def _check_winner(self) -> Optional[str]:
+        for a, b, c in self.WIN_COMBOS:
+            if self._board[a] == self._board[b] == self._board[c] and self._board[a]:
+                self._winning_cells = [a, b, c]
+                self._board_widget.update()
+                return self._board[a]
+        return None
+
+    def _handle_game_over(self, result: str):
+        self._active = False
+        if result == "X":
+            self._status_lbl.setText("You win! Konqi is displeased.")
+        elif result == "O":
+            self._status_lbl.setText("Konqi wins! Obviously.")
+        else:
+            self._status_lbl.setText("Draw. Acceptable outcome.")
+        self._on_game_over(result)
+
+    def _reset(self):
+        self._board = [None] * 9
+        self._active = True
+        self._winning_cells = []
+        self._status_lbl.setText("Your turn (X)")
+        self._board_widget.update()
+
+    def _close_game(self):
+        self.hide()
+        self.deleteLater()
+
+
 class KonqiWindow(QWidget):
     spawn_requested = pyqtSignal()
     exit_requested  = pyqtSignal()
@@ -613,6 +871,9 @@ class KonqiWindow(QWidget):
             self._physics.set_climb_canvas_w(ccw)
         except Exception:
             pass
+
+        self._pixmap_cache: Dict[int, QPixmap] = {}
+        self._preload_pixmaps()
 
         self._dragging       = False
         self._drag_offset    = QPoint(0, 0)
@@ -805,22 +1066,23 @@ class KonqiWindow(QWidget):
 
     def _do_chaos_action(self, action: str):
         dispatch = {
-            "teleport":     self._do_teleport,
-            "spin":         self._do_spin,
-            "drift":        self._do_drift,
-            "shake":        self._do_shake,
-            "dive":         self._do_dive,
-            "bounce":       self._do_bounce,
-            "flee_cursor":  self._start_flee_cursor,
-            "sit_on_window":self._try_sit_on_window,
-            "scribble":     self._do_scribble,
-            "summon_twin":  lambda: self._app_ref.summon_twin(self),
-            "trip":         self._do_trip,
-            "stare_spot":   self._do_stare_spot,
-            "freeze_glitch":self._do_freeze_glitch,
-            "poem":         self._do_poem,
-            "letter":       self._do_letter,
-            "window_catch": self._do_window_catch,
+            "teleport":        self._do_teleport,
+            "spin":            self._do_spin,
+            "drift":           self._do_drift,
+            "shake":           self._do_shake,
+            "dive":            self._do_dive,
+            "bounce":          self._do_bounce,
+            "flee_cursor":     self._start_flee_cursor,
+            "sit_on_window":   self._try_sit_on_window,
+            "scribble":        self._do_scribble,
+            "summon_twin":     lambda: self._app_ref.summon_twin(self),
+            "trip":            self._do_trip,
+            "stare_spot":      self._do_stare_spot,
+            "freeze_glitch":   self._do_freeze_glitch,
+            "poem":            self._do_poem,
+            "letter":          self._do_letter,
+            "window_catch":    self._do_window_catch,
+            "minimize_window": self._do_minimize_window,
         }
         fn = dispatch.get(action)
         if fn: fn()
@@ -1224,6 +1486,38 @@ class KonqiWindow(QWidget):
             "Gone.", "It's gone.", "I almost had it.",
         ]))
 
+    def _do_minimize_window(self):
+        """Minimise the currently active window as a prank."""
+        minimized = False
+        try:
+            r = subprocess.run(
+                ["xdotool", "getactivewindow", "windowminimize"],
+                capture_output=True, timeout=1,
+            )
+            minimized = (r.returncode == 0)
+        except Exception:
+            pass
+        if not minimized:
+            try:
+                r = subprocess.run(
+                    ["wmctrl", "-r", ":ACTIVE:", "-b", "add,hidden"],
+                    capture_output=True, timeout=1,
+                )
+                minimized = (r.returncode == 0)
+            except Exception:
+                pass
+        if minimized:
+            self._show_bubble(random.choice([
+                "Minimised. You're welcome.",
+                "Gone. I helped.",
+                "That window needed a rest.",
+                "Out of sight, out of mind.",
+                "One less distraction.",
+                "I did that. On purpose.",
+            ]))
+        else:
+            self._show_bubble("I tried to minimize something. It resisted.")
+
                                            
 
     def _on_anim_state_change(self, new_state: "State") -> None:
@@ -1289,21 +1583,66 @@ class KonqiWindow(QWidget):
 
     def _apply_state_behavior(self) -> None:
         st = self._pet_state.state
-        self._physics.state.vx = 0.0  # reset any drift from previous state
+        self._physics.state.vx = 0.0
         if st is PetState.HAPPY:
             self._anim.set_state(State.WAVE, force=True)
         elif st is PetState.ANGRY:
             self._do_chaos_action("shake")
         elif st is PetState.SATISFIED:
             self._anim.set_state(State.STRETCH, force=True)
-        # IDLE: just let the animation state machine pick its next variant.
+
+    def start_tictactoe(self) -> None:
+        """Open a tic-tac-toe game window near Konqi."""
+        if hasattr(self, "_ttt_widget") and self._ttt_widget is not None:
+            try:
+                if self._ttt_widget.isVisible():
+                    return
+            except RuntimeError:
+                pass
+        self._ttt_widget = TicTacToeWidget(self._screen, self._on_ttt_game_over)
+        self._show_bubble(random.choice([
+            "Let's play.", "You won't win.", "I've already calculated every move.",
+            "This will be quick.", "Prepare to lose, statistically.",
+        ]))
+
+    def _on_ttt_game_over(self, result: str) -> None:
+        """React to tic-tac-toe result with pet state + animation."""
+        if result == "X":
+            self._pet_state.set(PetState.ANGRY)
+            self._apply_state_behavior()
+            self._show_bubble(random.choice([
+                "Fine. You won. This time.",
+                "I let you win. Obviously.",
+                "That was a calculated loss.",
+                "Statistically improbable. Yet here we are.",
+                "I am displeased.",
+            ]), duration_ms=4000)
+        elif result == "O":
+            self._pet_state.set(PetState.HAPPY)
+            self._apply_state_behavior()
+            self._show_bubble(random.choice([
+                "As expected.", "Flawless.", "I never doubted the outcome.",
+                "You played well. Against an optimal opponent.",
+                "Victory. Obviously.",
+            ]), duration_ms=4000)
+        else:
+            self._pet_state.set(PetState.SATISFIED)
+            self._apply_state_behavior()
+            self._show_bubble(random.choice([
+                "A draw. Acceptable.", "Evenly matched. Somehow.",
+                "Neither of us lost. Neither of us won. Philosophical.",
+                "A respectable outcome.", "Draw. I'll allow it.",
+            ]), duration_ms=4000)
 
     def _update_sprite(self):
         img = self._anim.current_image
-        pixmap = pil_to_qpixmap(img)
+        fid = id(img)
+        pixmap = self._pixmap_cache.get(fid)
+        if pixmap is None:
+            pixmap = pil_to_qpixmap(img)
+            self._pixmap_cache[fid] = pixmap
         self._label.setPixmap(pixmap); self._label.resize(pixmap.size()); self.resize(pixmap.size())
         self._physics.set_sprite_size(pixmap.width(), pixmap.height())
-                                                      
         if self._anim.state in (State.CLIMB_RIGHT, State.CLIMB_LEFT):
             try:
                 from sprite_loader import get_climb_canvas_size
@@ -1358,6 +1697,16 @@ class KonqiWindow(QWidget):
 
     def set_animation_speed(self, speed: float):
         self._cfg["animation_speed"] = speed; self._anim.speed = speed
+
+    def _preload_pixmaps(self) -> None:
+        """Pre-convert every PIL frame to QPixmap once, avoiding per-frame allocation."""
+        for name, frames in self._anims.items():
+            if name.startswith("_"):
+                continue
+            for frame in frames:
+                fid = id(frame)
+                if fid not in self._pixmap_cache:
+                    self._pixmap_cache[fid] = pil_to_qpixmap(frame)
 
     def react_to_cpu(self, pct: float):
         threshold = self._cfg.get("cpu_high_threshold", 85)
@@ -1532,8 +1881,10 @@ class KonqiApp(QApplication):
         act(sound_lbl, self._toggle_sound)
         menu.addSeparator()
 
-        act("💡  Give me a useless PC tip", lambda: self._force_tip(konqi))
-        act("🔥  Hardware roast me again",   lambda: self._force_hw_roast(konqi))
+        act("💡  Give me a useless PC tip",  lambda: self._force_tip(konqi))
+        act("✅  Give me a real PC tip",      lambda: self._force_real_tip(konqi))
+        act("🔥  Hardware roast me again",    lambda: self._force_hw_roast(konqi))
+        act("🎮  Play Tic-Tac-Toe",           lambda: konqi.start_tictactoe())
         menu.addSeparator()
 
         mode_menu = menu.addMenu("⚡  Behavior Mode"); mode_menu.setStyleSheet(STYLE)
@@ -1561,7 +1912,8 @@ class KonqiApp(QApplication):
         for an, al in [("teleport","⚡ Teleport"),("spin","🌀 Spin"),("drift","💨 Drift"),
                         ("shake","🫨 Shake"),("dive","🚀 Dive"),("bounce","🏀 Bounce"),
                         ("trip","🤸 Trip"),("stare_spot","👁 Stare"),
-                        ("freeze_glitch","💀 Glitch"),("poem","📜 Poem"),("letter","✉ Letter")]:
+                        ("freeze_glitch","💀 Glitch"),("poem","📜 Poem"),("letter","✉ Letter"),
+                        ("minimize_window","📦 Minimise Window")]:
             a = QAction(al, chaos_menu)
             a.triggered.connect(lambda checked,x=an,k=konqi: k._do_chaos_action(x))
             chaos_menu.addAction(a)
@@ -1594,6 +1946,9 @@ class KonqiApp(QApplication):
 
     def _force_tip(self, konqi):
         from chaos_gremlin import USELESS_TIPS; konqi.show_dialogue(random.choice(USELESS_TIPS))
+
+    def _force_real_tip(self, konqi):
+        from chaos_gremlin import REAL_PC_TIPS; konqi.show_dialogue(random.choice(REAL_PC_TIPS))
 
     def _force_hw_roast(self, konqi):
         from chaos_gremlin import POTATO_ROASTS, BEAST_PC_JEALOUSY

@@ -1,8 +1,9 @@
 """
 dialog_system.py - Interactive dialog data and selection.
 
-A dialog has exactly one prompt text and exactly two choices.
-Each choice maps directly to a PetState result: idle / happy / angry / satisfied.
+One organised list of dialogs covering: wellbeing, opinions, challenges,
+PC knowledge, personal questions, and meta/playful prompts.
+Each entry has exactly two choices that map to a PetState result.
 This module is pure data + selection logic. No Qt, no threads, no timers.
 """
 from __future__ import annotations
@@ -19,67 +20,286 @@ _USERNAME: str = getpass.getuser()
 def format_text(text: str) -> str:
     return text.replace("{user}", _USERNAME)
 
-# --------------------------------------------------------------------------
-# Dialog data
-# --------------------------------------------------------------------------
-# Each entry: {"text": <prompt>, "choices": [ {"text": ..., "result": ...}, ... ]}
-# "result" MUST be one of: "idle", "happy", "angry", "satisfied".
 
 DIALOGS: List[Dict] = [
+
+    # ── Wellbeing ─────────────────────────────────────────────────────────────
     {
-        "text": "Hey {user}, do you want to feed me?",
+        "text": "Hey {user}, when did you last drink water?",
         "choices": [
-            {"text": "Yes",  "result": "happy"},
-            {"text": "No",   "result": "angry"},
+            {"text": "Just now",    "result": "satisfied"},
+            {"text": "Hours ago",   "result": "angry"},
         ],
     },
     {
-        "text": "I'm tired, {user}. Can I take a break?",
+        "text": "Are you sitting up straight, {user}?",
         "choices": [
-            {"text": "Sure, rest", "result": "satisfied"},
-            {"text": "Keep going", "result": "angry"},
+            {"text": "I am now",    "result": "satisfied"},
+            {"text": "Still slouching", "result": "angry"},
         ],
     },
     {
-        "text": "Am I doing a good job, {user}?",
+        "text": "Have you taken a break recently, {user}?",
         "choices": [
-            {"text": "You are great", "result": "happy"},
-            {"text": "Not really",    "result": "angry"},
+            {"text": "Yes, I stepped away", "result": "satisfied"},
+            {"text": "Not today",            "result": "angry"},
         ],
     },
     {
-        "text": "Want to play a game, {user}?",
+        "text": "Are you getting enough sleep, {user}?",
         "choices": [
-            {"text": "Absolutely",   "result": "happy"},
-            {"text": "Maybe later",  "result": "satisfied"},
+            {"text": "Yes, well-rested",  "result": "happy"},
+            {"text": "Definitely not",    "result": "angry"},
         ],
     },
     {
-        "text": "Should I keep watching you work, {user}?",
+        "text": "Did you eat something proper today, {user}?",
         "choices": [
-            {"text": "Yes, stay",    "result": "satisfied"},
-            {"text": "Leave me",     "result": "angry"},
+            {"text": "Yes, actual food", "result": "happy"},
+            {"text": "Just coffee",      "result": "angry"},
         ],
     },
     {
-        "text": "I think you should take a walk, {user}.",
+        "text": "How's your stress level today, {user}?",
         "choices": [
-            {"text": "Good idea",    "result": "satisfied"},
-            {"text": "Mind your business", "result": "angry"},
+            {"text": "Fine, under control", "result": "satisfied"},
+            {"text": "Through the roof",    "result": "angry"},
+        ],
+    },
+
+    # ── Opinions & Debates ────────────────────────────────────────────────────
+    {
+        "text": "Tabs or spaces, {user}?",
+        "choices": [
+            {"text": "Tabs, obviously",  "result": "happy"},
+            {"text": "Spaces, clearly",  "result": "angry"},
+        ],
+    },
+    {
+        "text": "Dark mode or light mode?",
+        "choices": [
+            {"text": "Dark, always",   "result": "happy"},
+            {"text": "Light mode",     "result": "angry"},
+        ],
+    },
+    {
+        "text": "Vim or something else?",
+        "choices": [
+            {"text": "Vim, obviously", "result": "happy"},
+            {"text": "Anything else",  "result": "angry"},
+        ],
+    },
+    {
+        "text": "Linux was the right choice, wasn't it, {user}?",
+        "choices": [
+            {"text": "Obviously yes",    "result": "happy"},
+            {"text": "I had no choice",  "result": "angry"},
+        ],
+    },
+    {
+        "text": "Rolling release or stable, {user}?",
+        "choices": [
+            {"text": "Rolling, live dangerously", "result": "happy"},
+            {"text": "Stable, I value sleep",     "result": "satisfied"},
+        ],
+    },
+    {
+        "text": "Is a hotdog a sandwich, {user}?",
+        "choices": [
+            {"text": "Yes, obviously",   "result": "happy"},
+            {"text": "Absolutely not",   "result": "angry"},
+        ],
+    },
+    {
+        "text": "Git pull or git fetch then merge, {user}?",
+        "choices": [
+            {"text": "Fetch then merge", "result": "happy"},
+            {"text": "Just pull, yolo",  "result": "angry"},
+        ],
+    },
+
+    # ── Challenges ────────────────────────────────────────────────────────────
+    {
+        "text": "Can you name the shortcut for undo without thinking?",
+        "choices": [
+            {"text": "Ctrl+Z, trivial",  "result": "happy"},
+            {"text": "Had to think",     "result": "satisfied"},
+        ],
+    },
+    {
+        "text": "How many browser tabs do you have open right now, {user}?",
+        "choices": [
+            {"text": "Under 10, healthy", "result": "happy"},
+            {"text": "Don't judge me",    "result": "angry"},
+        ],
+    },
+    {
+        "text": "Have you saved your work recently, {user}?",
+        "choices": [
+            {"text": "Auto-save is on",  "result": "satisfied"},
+            {"text": "Oh no...",         "result": "angry"},
+        ],
+    },
+    {
+        "text": "Is your code currently compiling, {user}?",
+        "choices": [
+            {"text": "Yes, it builds",      "result": "happy"},
+            {"text": "There are... issues", "result": "angry"},
+        ],
+    },
+
+    # ── Real PC Knowledge ─────────────────────────────────────────────────────
+    {
+        "text": "Did you know Ctrl+R in bash searches your command history, {user}?",
+        "choices": [
+            {"text": "Yes, I use it",      "result": "satisfied"},
+            {"text": "Oh, I didn't know",  "result": "happy"},
+        ],
+    },
+    {
+        "text": "Do you back up your files regularly, {user}?",
+        "choices": [
+            {"text": "3-2-1 rule, always", "result": "happy"},
+            {"text": "I should do that",   "result": "angry"},
+        ],
+    },
+    {
+        "text": "Do you use a password manager, {user}?",
+        "choices": [
+            {"text": "Yes, KeePassXC",      "result": "happy"},
+            {"text": "My brain is my vault", "result": "angry"},
+        ],
+    },
+    {
+        "text": "Do you check 'man' pages when stuck, or just Google, {user}?",
+        "choices": [
+            {"text": "man first, always",   "result": "happy"},
+            {"text": "Stack Overflow wins",  "result": "angry"},
+        ],
+    },
+    {
+        "text": "Have you set up SSH keys instead of typing passwords, {user}?",
+        "choices": [
+            {"text": "Yes, long ago",        "result": "satisfied"},
+            {"text": "Not yet, I should",    "result": "angry"},
+        ],
+    },
+    {
+        "text": "Do you use tmux or screen for persistent sessions, {user}?",
+        "choices": [
+            {"text": "tmux, obviously",      "result": "happy"},
+            {"text": "What's the point",     "result": "angry"},
+        ],
+    },
+    {
+        "text": "Do you use aliases in your shell config, {user}?",
+        "choices": [
+            {"text": "Dozens of them",       "result": "happy"},
+            {"text": "I type everything out", "result": "angry"},
+        ],
+    },
+
+    # ── Personal / Meta ───────────────────────────────────────────────────────
+    {
+        "text": "Coffee or tea, {user}?",
+        "choices": [
+            {"text": "Coffee, life depends",  "result": "happy"},
+            {"text": "Tea, civilised choice", "result": "satisfied"},
+        ],
+    },
+    {
+        "text": "What's your favourite programming language, {user}?",
+        "choices": [
+            {"text": "Python, obviously",       "result": "happy"},
+            {"text": "Something compiled",      "result": "satisfied"},
         ],
     },
     {
         "text": "Am I your favourite thing on screen, {user}?",
         "choices": [
-            {"text": "Of course",    "result": "happy"},
-            {"text": "Not even close", "result": "angry"},
+            {"text": "Of course, Konqi!",  "result": "happy"},
+            {"text": "There are others...", "result": "angry"},
         ],
     },
     {
+        "text": "Should I wake you if you fall asleep at your desk, {user}?",
+        "choices": [
+            {"text": "Please, yes",     "result": "happy"},
+            {"text": "Let me sleep",    "result": "satisfied"},
+        ],
+    },
+    {
+        "text": "I've been watching you all day, {user}. Any regrets?",
+        "choices": [
+            {"text": "Not really",          "result": "satisfied"},
+            {"text": "Several, actually",   "result": "angry"},
+        ],
+    },
+    {
+        "text": "Do you think you're being productive today, {user}?",
+        "choices": [
+            {"text": "Actually, yes",       "result": "happy"},
+            {"text": "That's a strong word", "result": "angry"},
+        ],
+    },
+    {
+        "text": "What's more dangerous: merge conflicts or segfaults, {user}?",
+        "choices": [
+            {"text": "Merge conflicts, clearly", "result": "angry"},
+            {"text": "Segfaults, no contest",    "result": "angry"},
+        ],
+    },
+    {
+        "text": "If you could delete one folder forever, what would it be?",
+        "choices": [
+            {"text": "node_modules, obviously", "result": "happy"},
+            {"text": "__pycache__, same energy", "result": "satisfied"},
+        ],
+    },
+
+    # ── Games ─────────────────────────────────────────────────────────────────
+    {
+        "text": "Want to play a game, {user}?",
+        "choices": [
+            {"text": "Absolutely, let's go", "result": "happy"},
+            {"text": "Maybe later",          "result": "satisfied"},
+        ],
+    },
+    {
+        "text": "How about a round of tic-tac-toe, {user}?",
+        "choices": [
+            {"text": "Challenge accepted",  "result": "happy"},
+            {"text": "I'll pass",           "result": "satisfied"},
+        ],
+    },
+    {
+        "text": "Do you think you could beat me at tic-tac-toe, {user}?",
+        "choices": [
+            {"text": "Easily, watch me",     "result": "happy"},
+            {"text": "I have no confidence", "result": "angry"},
+        ],
+    },
+
+    # ── Konqi-specific ────────────────────────────────────────────────────────
+    {
         "text": "Can I try climbing the wall?",
         "choices": [
-            {"text": "Go for it",   "result": "happy"},
-            {"text": "Stay down",   "result": "angry"},
+            {"text": "Go for it",  "result": "happy"},
+            {"text": "Stay down",  "result": "angry"},
+        ],
+    },
+    {
+        "text": "Should I keep watching you work, {user}?",
+        "choices": [
+            {"text": "Yes, stay here",  "result": "satisfied"},
+            {"text": "Leave me alone",  "result": "angry"},
+        ],
+    },
+    {
+        "text": "I think you should take a break, {user}.",
+        "choices": [
+            {"text": "Good idea",           "result": "satisfied"},
+            {"text": "I'm almost done",     "result": "angry"},
         ],
     },
     {
@@ -90,26 +310,22 @@ DIALOGS: List[Dict] = [
         ],
     },
     {
-        "text": "I've been watching you, {user}. Something's on your mind.",
+        "text": "I've been here all day, {user}. Do I get overtime?",
         "choices": [
-            {"text": "I'm fine",      "result": "satisfied"},
-            {"text": "Not now",       "result": "angry"},
+            {"text": "You're salaried",    "result": "angry"},
+            {"text": "Fine, extra treats", "result": "happy"},
         ],
     },
 ]
 
-# Reaction lines shown by the pet immediately after a choice is made.
+
 _REACTIONS: Dict[str, List[str]] = {
-    "happy":     ["Yes!", "Thank you!", "You are the best.", "I love this."],
-    "satisfied": ["Fine.", "Acceptable.", "Okay.", "Noted."],
-    "angry":     ["Rude.", "Wrong answer.", "You will regret that.", "Fine. Be that way."],
+    "happy":     ["Yes!", "Thank you!", "You are the best.", "I love this.", "Noted positively."],
+    "satisfied": ["Fine.", "Acceptable.", "Okay.", "Noted.", "Reasonable choice."],
+    "angry":     ["Rude.", "Wrong answer.", "You will regret that.", "Fine. Be that way.", "Noted. Negatively."],
     "idle":      ["Hm.", "Okay.", "Fine."],
 }
 
-
-# --------------------------------------------------------------------------
-# Selection API
-# --------------------------------------------------------------------------
 
 class DialogSystem:
     """
@@ -121,14 +337,14 @@ class DialogSystem:
         self._recent: List[int] = []
 
     def pick(self) -> Dict:
-        """Return a random dialog that was not shown in the last few picks."""
+        """Return a random dialog (not shown in the last few picks) with {user} substituted."""
         n = len(DIALOGS)
         choices = [i for i in range(n) if i not in self._recent]
         if not choices:
             choices = list(range(n))
         idx = random.choice(choices)
         self._recent.append(idx)
-        if len(self._recent) > min(4, n - 1):
+        if len(self._recent) > min(6, n - 1):
             self._recent.pop(0)
         entry = DIALOGS[idx]
         return {"text": format_text(entry["text"]), "choices": entry["choices"]}
