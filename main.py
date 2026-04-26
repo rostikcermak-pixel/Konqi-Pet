@@ -1860,74 +1860,72 @@ class KonqiApp(QApplication):
 
     def show_context_menu(self, konqi, pos):
         menu = QMenu()
-        STYLE = """QMenu{background:#1a0a2e;color:#FFD93D;border:1px solid #CC5DE8;
-                   border-radius:8px;padding:4px;font-size:13px;}
-                   QMenu::item{padding:6px 20px;border-radius:4px;}
-                   QMenu::item:selected{background:#2D1B4E;}
-                   QMenu::separator{height:1px;background:#CC5DE8;margin:4px;}"""
+        STYLE = ("QMenu{background:#1a0a2e;color:#FFD93D;border:1px solid #CC5DE8;"
+                 "border-radius:6px;padding:2px;font-size:12px;}"
+                 "QMenu::item{padding:4px 14px;}"
+                 "QMenu::item:selected{background:#2D1B4E;}"
+                 "QMenu::separator{height:1px;background:#CC5DE8;margin:3px;}")
         menu.setStyleSheet(STYLE)
 
-        def act(label, fn): a = QAction(label, menu); a.triggered.connect(fn); menu.addAction(a); return a
+        def act(parent, label, fn):
+            a = QAction(label, parent); a.triggered.connect(fn); parent.addAction(a); return a
 
-        act("🐉  Spawn new Konqi", self.spawn_konqi)
-        act("✕   Remove this Konqi", lambda: self.remove_konqi(konqi))
+        act(menu, "🐉 Spawn",  self.spawn_konqi)
+        act(menu, "✕ Remove",  lambda: self.remove_konqi(konqi))
         menu.addSeparator()
 
-        chaos_lbl = "🔇  Disable Chaos Mode" if self._cfg.get("chaos_mode",True) else "🔊  Enable Chaos Mode"
-        act(chaos_lbl, self._toggle_chaos)
-        quiet_lbl = "💬  Enable Dialogue" if self._cfg.get("quiet_mode",False) else "🤫  Quiet Mode (No Bubbles)"
-        act(quiet_lbl, self._toggle_quiet)
-        sound_lbl = "🔇  Disable Sound Effects" if self._cfg.get("sound_effects",False) else "🔊  Enable Sound Effects"
-        act(sound_lbl, self._toggle_sound)
-        menu.addSeparator()
+        act(menu, "🎮 Tic-Tac-Toe", lambda: konqi.start_tictactoe())
 
-        act("💡  Give me a useless PC tip",  lambda: self._force_tip(konqi))
-        act("✅  Give me a real PC tip",      lambda: self._force_real_tip(konqi))
-        act("🔥  Hardware roast me again",    lambda: self._force_hw_roast(konqi))
-        act("🎮  Play Tic-Tac-Toe",           lambda: konqi.start_tictactoe())
-        menu.addSeparator()
-
-        mode_menu = menu.addMenu("⚡  Behavior Mode"); mode_menu.setStyleSheet(STYLE)
-        for mn, ml in [("calm","😴 Calm"),("hyper","⚡ Hyper")]:
+        mode_menu = menu.addMenu("⚡ Mode"); mode_menu.setStyleSheet(STYLE)
+        for mn, ml in [("calm","Calm"),("hyper","Hyper")]:
             a = QAction(ml, mode_menu); a.setCheckable(True)
             a.setChecked(self._cfg["behavior_mode"]==mn)
             a.triggered.connect(lambda checked,m=mn: self._set_behavior_mode(m))
             mode_menu.addAction(a)
 
-        speed_menu = menu.addMenu("🎬  Animation Speed"); speed_menu.setStyleSheet(STYLE)
+        speed_menu = menu.addMenu("🎬 Speed"); speed_menu.setStyleSheet(STYLE)
         for sl, sv in [("0.5×",0.5),("1×",1.0),("1.5×",1.5),("2×",2.0)]:
             a = QAction(sl, speed_menu); a.setCheckable(True)
             a.setChecked(abs(self._cfg["animation_speed"]-sv)<0.01)
             a.triggered.connect(lambda checked,s=sv: self._set_speed(s))
             speed_menu.addAction(a)
 
-        force_menu = menu.addMenu("🎭  Play Animation"); force_menu.setStyleSheet(STYLE)
-        for st, lbl in [(State.SLEEP,"💤 Sleep"),(State.FLY,"🦅 Fly"),
-                         (State.STRETCH,"🙆 Stretch"),(State.IDLE,"🧍 Idle")]:
-            a = QAction(lbl, force_menu)
-            a.triggered.connect(lambda checked,s=st,k=konqi: k._anim.set_state(s,force=True))
-            force_menu.addAction(a)
-
-        chaos_menu = menu.addMenu("💥  Chaos Actions"); chaos_menu.setStyleSheet(STYLE)
-        for an, al in [("teleport","⚡ Teleport"),("spin","🌀 Spin"),("drift","💨 Drift"),
-                        ("shake","🫨 Shake"),("dive","🚀 Dive"),("bounce","🏀 Bounce"),
-                        ("trip","🤸 Trip"),("stare_spot","👁 Stare"),
-                        ("freeze_glitch","💀 Glitch"),("poem","📜 Poem"),("letter","✉ Letter"),
-                        ("minimize_window","📦 Minimise Window")]:
+        chaos_menu = menu.addMenu("💥 Chaos"); chaos_menu.setStyleSheet(STYLE)
+        act(chaos_menu, "💡 Useless Tip",   lambda: self._force_tip(konqi))
+        act(chaos_menu, "✅ Real Tip",      lambda: self._force_real_tip(konqi))
+        act(chaos_menu, "🔥 Hardware Roast", lambda: self._force_hw_roast(konqi))
+        chaos_menu.addSeparator()
+        for an, al in [("teleport","Teleport"),("spin","Spin"),("drift","Drift"),
+                        ("shake","Shake"),("dive","Dive"),("bounce","Bounce"),
+                        ("trip","Trip"),("stare_spot","Stare"),
+                        ("freeze_glitch","Glitch"),("poem","Poem"),("letter","Letter"),
+                        ("minimize_window","Minimise Window")]:
             a = QAction(al, chaos_menu)
             a.triggered.connect(lambda checked,x=an,k=konqi: k._do_chaos_action(x))
             chaos_menu.addAction(a)
 
-        menu.addSeparator()
-        autostart_lbl = "Disable Autostart" if autostart_is_enabled() else "Enable Autostart on Boot"
-        act(autostart_lbl, self._toggle_autostart)
+        settings_menu = menu.addMenu("⚙ Settings"); settings_menu.setStyleSheet(STYLE)
+        for label, key, default, fn in [
+            ("Chaos Mode",   "chaos_mode",    True,  self._toggle_chaos),
+            ("Sounds",       "sound_effects", False, self._toggle_sound),
+            ("Quiet Bubbles","quiet_mode",    False, self._toggle_quiet),
+        ]:
+            a = QAction(label, settings_menu); a.setCheckable(True)
+            a.setChecked(self._cfg.get(key, default))
+            a.triggered.connect(lambda checked, f=fn: f())
+            settings_menu.addAction(a)
+        a = QAction("Autostart", settings_menu); a.setCheckable(True)
+        a.setChecked(autostart_is_enabled())
+        a.triggered.connect(lambda checked: self._toggle_autostart())
+        settings_menu.addAction(a)
         if _PSUTIL:
-            cpu_lbl = "🧠 Disable CPU Reactions" if self._cfg.get("cpu_reactions") else "🧠 Enable CPU Reactions"
-            act(cpu_lbl, self._toggle_cpu_reactions)
+            a = QAction("CPU Reactions", settings_menu); a.setCheckable(True)
+            a.setChecked(self._cfg.get("cpu_reactions", False))
+            a.triggered.connect(lambda checked: self._toggle_cpu_reactions())
+            settings_menu.addAction(a)
+
         menu.addSeparator()
-        a = QAction(f"📊  Active Konqis: {len(self._konqis)}", menu); a.setEnabled(False); menu.addAction(a)
-        menu.addSeparator()
-        act("🚪  Exit", self.quit_app)
+        act(menu, "🚪 Exit", self.quit_app)
         menu.exec(pos)
 
     def _toggle_chaos(self):

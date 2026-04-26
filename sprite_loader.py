@@ -35,12 +35,31 @@ SPRITE_FILES = {
     "base":  "konqi_base.png",
 }
 
-                                                                             
-         
-                                                                             
+CANVAS_X_PAD = 16
+CANVAS_TOP   = 32
 
 def _make_canvas(w: int, h: int) -> Image.Image:
     return Image.new("RGBA", (w, h), (0, 0, 0, 0))
+
+def _unified_canvas_size(base_w: int, base_h: int) -> Tuple[int, int]:
+    """Single canvas footprint shared by every per-frame animation.
+
+    Keeping every QPixmap the same size eliminates the inter-frame and
+    inter-state window-resize jumps that look uncanny on screen.
+    """
+    return base_w + CANVAS_X_PAD * 2, base_h + CANVAS_TOP
+
+def _paste_grounded(canvas: Image.Image, sprite: Image.Image,
+                    x_offset: int = 0, y_offset: int = 0) -> None:
+    """Paste sprite anchored to bottom-center of canvas.
+
+    y_offset > 0 lifts the sprite UP (used for bobs/hops).
+    """
+    cw, ch = canvas.size
+    sw, sh = sprite.size
+    ox = (cw - sw) // 2 + x_offset
+    oy = ch - sh - y_offset
+    canvas.paste(sprite, (ox, oy), sprite)
 
 def _load_sprite(assets_dir: Path, key: str) -> Image.Image:
     fname = SPRITE_FILES.get(key, SPRITE_FILES["base"])
@@ -63,7 +82,7 @@ def _load_sprite(assets_dir: Path, key: str) -> Image.Image:
 def gen_walk_frames(base: Image.Image, n: int = 12) -> List[Image.Image]:
     """Walk right: stride bob + lean + landing squash. walk_left = flip."""
     w, h = base.size
-    canvas_h = h + 16
+    cw, ch = _unified_canvas_size(w, h)
     frames = []
     for i in range(n):
         t    = i / n
@@ -71,15 +90,16 @@ def gen_walk_frames(base: Image.Image, n: int = 12) -> List[Image.Image]:
         lean = int(4 * math.sin(t * math.pi * 2))
         sy   = 1.0 - 0.05 * abs(math.sin(t * math.pi * 2))
         nh2  = max(1, int(h * sy))
-        frame = base.resize((w, nh2), Image.LANCZOS)
-        c = _make_canvas(w + 12, canvas_h)
-        c.paste(frame, (3 + lean, canvas_h - nh2 - bob), frame)
+        sprite = base.resize((w, nh2), Image.LANCZOS)
+        c = _make_canvas(cw, ch)
+        _paste_grounded(c, sprite, x_offset=lean, y_offset=bob)
         frames.append(c)
     return frames
 
 def gen_idle_frames(base: Image.Image, n: int = 12) -> List[Image.Image]:
     """Breathing pulse + sway with occasional head-tilt on the beat."""
     w, h = base.size
+    cw, ch = _unified_canvas_size(w, h)
     frames = []
     for i in range(n):
         t      = i / n
@@ -89,30 +109,32 @@ def gen_idle_frames(base: Image.Image, n: int = 12) -> List[Image.Image]:
         nw2    = max(1, int(w * breath))
         nh2    = max(1, int(h * breath))
         resized = base.resize((nw2, nh2), Image.LANCZOS)
-        frame   = resized.rotate(sway + tilt, expand=False, resample=Image.BICUBIC)
-        c = _make_canvas(w + 8, h + 8)
-        c.paste(frame, ((w + 8 - nw2) // 2, (h + 8 - nh2)), frame)
+        sprite  = resized.rotate(sway + tilt, expand=False, resample=Image.BICUBIC)
+        c = _make_canvas(cw, ch)
+        _paste_grounded(c, sprite)
         frames.append(c)
     return frames
 
 def gen_look_around_frames(base: Image.Image, n: int = 14) -> List[Image.Image]:
     """Head-turn left then right: horizontal squish + slight bob at peak."""
     w, h = base.size
+    cw, ch = _unified_canvas_size(w, h)
     frames = []
     for i in range(n):
         t   = i / n
         sx  = 1.0 - 0.45 * abs(math.sin(t * math.pi * 2))
         bob = int(3 * abs(math.sin(t * math.pi * 2)))
         nw2 = max(1, int(w * sx))
-        f   = base.resize((nw2, h), Image.LANCZOS)
-        c   = _make_canvas(w + 8, h + 6)
-        c.paste(f, ((w + 8 - nw2) // 2, 2 + bob), f)
+        sprite = base.resize((nw2, h), Image.LANCZOS)
+        c = _make_canvas(cw, ch)
+        _paste_grounded(c, sprite, y_offset=bob)
         frames.append(c)
     return frames
 
 def gen_wave_frames(base: Image.Image, n: int = 14) -> List[Image.Image]:
     """Excited wave: big tilt, high hop, pulse scale — clearly celebrating."""
     w, h = base.size
+    cw, ch = _unified_canvas_size(w, h)
     frames = []
     for i in range(n):
         t     = i / n
@@ -122,18 +144,16 @@ def gen_wave_frames(base: Image.Image, n: int = 14) -> List[Image.Image]:
         nw2   = max(1, int(w * pulse))
         nh2   = max(1, int(h * pulse))
         resized = base.resize((nw2, nh2), Image.LANCZOS)
-        f     = resized.rotate(tilt, expand=False, resample=Image.BICUBIC)
-        c     = _make_canvas(w + 12, h + 14)
-        ox    = (w + 12 - f.width) // 2
-        oy    = h + 14 - f.height - bob
-        c.paste(f, (ox, oy), f)
+        sprite  = resized.rotate(tilt, expand=False, resample=Image.BICUBIC)
+        c = _make_canvas(cw, ch)
+        _paste_grounded(c, sprite, y_offset=bob)
         frames.append(c)
     return frames
 
 def gen_sleep_frames(base: Image.Image, n: int = 8) -> List[Image.Image]:
     """Gentle breathing — nose bubble is baked into the sprite."""
     w, h = base.size
-    cw, ch = w + 20, h + 16
+    cw, ch = _unified_canvas_size(w, h)
     frames = []
     for i in range(n):
         t    = i / n
@@ -141,9 +161,9 @@ def gen_sleep_frames(base: Image.Image, n: int = 8) -> List[Image.Image]:
         nh2  = max(1, int(h * sy))
         resized = base.resize((w, nh2), Image.LANCZOS)
         sway    = 0.4 * math.sin(t * math.pi * 2)
-        frame   = resized.rotate(sway, expand=False, resample=Image.BICUBIC)
+        sprite  = resized.rotate(sway, expand=False, resample=Image.BICUBIC)
         c = _make_canvas(cw, ch)
-        c.paste(frame, (2, ch - nh2), frame)
+        _paste_grounded(c, sprite)
         frames.append(c)
     return frames
 
@@ -209,6 +229,7 @@ def gen_climb_frames(base: Image.Image, n: int = 8,
 def gen_fall_frames(base: Image.Image, n: int = 6) -> List[Image.Image]:
     """Progressive stretch + rotation as Konqi falls."""
     w, h = base.size
+    cw, ch = _unified_canvas_size(w, h)
     frames = []
     for i in range(n):
         t   = i / n
@@ -216,31 +237,36 @@ def gen_fall_frames(base: Image.Image, n: int = 6) -> List[Image.Image]:
         sx  = 1.0 - 0.06 * t
         nw2 = max(1, int(w * sx))
         nh2 = max(1, int(h * sy))
-        frame = base.resize((nw2, nh2), Image.LANCZOS)
-        angle = 8 * math.sin(t * math.pi * 1.5)
-        frame = frame.rotate(angle, expand=False, resample=Image.BICUBIC)
-        frames.append(frame)
+        sprite = base.resize((nw2, nh2), Image.LANCZOS)
+        angle  = 8 * math.sin(t * math.pi * 1.5)
+        sprite = sprite.rotate(angle, expand=False, resample=Image.BICUBIC)
+        c = _make_canvas(cw, ch)
+        _paste_grounded(c, sprite)
+        frames.append(c)
     return frames
 
 def gen_drag_frames(base: Image.Image, n: int = 6) -> List[Image.Image]:
     """Wide panic wobble + brightness flash."""
+    w, h = base.size
+    cw, ch = _unified_canvas_size(w, h)
     frames = []
     for i in range(n):
-        t     = i / n
         angle = 16 * math.sin(i * math.pi * 2 / n)
-        w, h  = base.size
         scale = 1.0 + 0.05 * abs(math.sin(i * math.pi / n))
         nw2   = max(1, int(w * scale))
         nh2   = max(1, int(h * scale))
-        frame = base.resize((nw2, nh2), Image.LANCZOS)
-        frame = frame.rotate(angle, expand=False, resample=Image.BICUBIC)
-        frame = ImageEnhance.Brightness(frame).enhance(1.12)
-        frames.append(frame)
+        sprite = base.resize((nw2, nh2), Image.LANCZOS)
+        sprite = sprite.rotate(angle, expand=False, resample=Image.BICUBIC)
+        sprite = ImageEnhance.Brightness(sprite).enhance(1.12)
+        c = _make_canvas(cw, ch)
+        _paste_grounded(c, sprite)
+        frames.append(c)
     return frames
 
 def gen_fly_frames(base: Image.Image, n: int = 8) -> List[Image.Image]:
     """Idle sprite bobs and tilts on a smooth arc."""
     w, h = base.size
+    cw, ch = _unified_canvas_size(w, h)
     frames = []
     for i in range(n):
         t     = i / n
@@ -250,15 +276,16 @@ def gen_fly_frames(base: Image.Image, n: int = 8) -> List[Image.Image]:
         nw2   = max(1, int(w * scale))
         nh2   = max(1, int(h * scale))
         resized = base.resize((nw2, nh2), Image.LANCZOS)
-        frame   = resized.rotate(tilt, expand=False, resample=Image.BICUBIC)
-        c = _make_canvas(w + 6, h + 16)
-        c.paste(frame, ((w+6-frame.width)//2, 7+dy), frame)
+        sprite  = resized.rotate(tilt, expand=False, resample=Image.BICUBIC)
+        c = _make_canvas(cw, ch)
+        _paste_grounded(c, sprite, y_offset=dy)
         frames.append(c)
     return frames
 
 def gen_stretch_frames(base: Image.Image, n: int = 12) -> List[Image.Image]:
     """Full squash-and-stretch yawn: wide squeeze, tall stretch, slow settle."""
     w, h = base.size
+    cw, ch = _unified_canvas_size(w, h)
     frames = []
     for i in range(n):
         t = i / n
@@ -279,10 +306,9 @@ def gen_stretch_frames(base: Image.Image, n: int = 12) -> List[Image.Image]:
             sy = 1.06 - 0.06 * p; sx = 0.98 + 0.02 * p
         nw2 = max(1, int(w * sx))
         nh2 = max(1, int(h * sy))
-        s   = base.resize((nw2, nh2), Image.LANCZOS)
-        PAD_H = int(h * 0.28)
-        c   = _make_canvas(w + 10, h + PAD_H)
-        c.paste(s, ((c.width - nw2) // 2, c.height - nh2), s)
+        sprite = base.resize((nw2, nh2), Image.LANCZOS)
+        c = _make_canvas(cw, ch)
+        _paste_grounded(c, sprite)
         frames.append(c)
     return frames
 
