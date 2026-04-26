@@ -50,6 +50,9 @@ from chaos_gremlin import GremlinBrain, GremlinEvent
 from sound_engine  import SoundEngine
 from dialog_system import DialogSystem
 from pet_state     import PetState, PetStateMachine
+from updater       import check_for_update, apply_update, REPO as UPDATE_REPO
+
+__version__ = "0.1.0"
 
 try:
     import psutil
@@ -363,6 +366,17 @@ class SpriteLoaderThread(QThread):
         if anims is None or self._force:
             anims = load_sprites(ASSETS_DIR, force_download=self._force)
         self.done.emit(anims)
+
+class UpdateCheckThread(QThread):
+    found = pyqtSignal(str, str)
+    def __init__(self, current_version: str):
+        super().__init__()
+        self._current = current_version
+    def run(self):
+        rel = check_for_update(self._current)
+        if rel is not None:
+            self.found.emit(rel.tag, rel.url)
+
 
 class CPUMonitor(QThread):
     cpu_level = pyqtSignal(float)
@@ -1747,6 +1761,8 @@ class KonqiApp(QApplication):
         self.dialog_system = DialogSystem()
         self.pet_state     = PetStateMachine()
         self._loading_label = None
+        self._available_update: Optional[tuple] = None
+        self._update_thread: Optional[UpdateCheckThread] = None
         self._show_loading()
         self._loader = SpriteLoaderThread(force=False)
         self._loader.done.connect(self._on_sprites_loaded)
@@ -1787,6 +1803,58 @@ class KonqiApp(QApplication):
         self._anims = animations
         for _ in range(max(1, self._cfg.get("spawn_count", 1))):
             self.spawn_konqi()
+        QTimer.singleShot(5000, self._maybe_check_updates)
+
+    def _maybe_check_updates(self):
+        last = self._cfg.get("last_update_check", 0)
+        if time.time() - last < 86400:
+            return
+        self._kick_update_check()
+
+    def _kick_update_check(self):
+        if getattr(self, "_update_thread", None) is not None and self._update_thread.isRunning():
+            return
+        self._update_thread = UpdateCheckThread(__version__)
+        self._update_thread.found.connect(self._on_update_found)
+        self._update_thread.finished.connect(self._on_update_check_done)
+        self._update_thread.start()
+
+    def _on_update_check_done(self):
+        self._cfg["last_update_check"] = int(time.time())
+        save_config(self._cfg)
+
+    def _on_update_found(self, tag: str, url: str):
+        self._available_update = (tag, url)
+        if self._konqis:
+            self._konqis[0]._show_bubble(
+                f"New version {tag} is out! Right-click → Settings → Update.",
+                duration_ms=6500)
+
+    def _force_update_check(self):
+        konqi = self._konqis[0] if self._konqis else None
+        if konqi:
+            konqi._show_bubble("Checking for updates…", duration_ms=2500)
+        self._cfg["last_update_check"] = 0
+        self._kick_update_check()
+
+    def _apply_update(self):
+        konqi = self._konqis[0] if self._konqis else None
+        ok, msg = apply_update()
+        if not ok:
+            if konqi: konqi._show_bubble(f"Update failed: {msg}", duration_ms=8000)
+            log.warning("Update failed: %s", msg)
+            return
+        if konqi: konqi._show_bubble(f"{msg} Restarting…", duration_ms=2000)
+        log.info("Update applied: %s", msg)
+        QTimer.singleShot(2200, self._restart_self)
+
+    def _restart_self(self):
+        try:
+            python = sys.executable
+            os.execv(python, [python, *sys.argv])
+        except Exception as exc:
+            log.warning("Self-restart failed (%s); quitting", exc)
+            self.quit_app()
 
     def spawn_konqi(self):
         if self._anims is None or len(self._konqis) >= 10: return
@@ -1923,6 +1991,13 @@ class KonqiApp(QApplication):
             a.setChecked(self._cfg.get("cpu_reactions", False))
             a.triggered.connect(lambda checked: self._toggle_cpu_reactions())
             settings_menu.addAction(a)
+        settings_menu.addSeparator()
+        if self._available_update:
+            tag, _ = self._available_update
+            act(settings_menu, f"🔄 Update to {tag}", self._apply_update)
+        else:
+            act(settings_menu, f"🔄 Check for Updates (v{__version__})",
+                self._force_update_check)
 
         menu.addSeparator()
         act(menu, "🚪 Exit", self.quit_app)
