@@ -594,9 +594,7 @@ class InteractiveBubble(QWidget):
         return not self._dead
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  Tic-Tac-Toe mini-game
-# ─────────────────────────────────────────────────────────────────────────────
+# Tic-Tac-Toe mini-game
 
 class _TTTBoard(QWidget):
     """Clickable 3×3 grid owned by TicTacToeWidget."""

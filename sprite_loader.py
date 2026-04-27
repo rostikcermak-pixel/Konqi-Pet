@@ -1,16 +1,4 @@
-"""
-sprite_loader.py – Multi-sprite animation generator for Konqi Shimeji.
-
-Per-state sprites:
-  walk_right / walk_left   → konqi_walk.png
-  idle / look_around / wave → konqi_idle.png
-  sleep                    → konqi_sleep.png
-  climb_right / climb_left → konqi_climb.png  (left flips base first)
-  fall                     → konqi_walk.png
-  drag                     → konqi_idle.png
-  fly                      → konqi_idle.png
-  stretch                  → konqi_idle.png
-"""
+"""sprite_loader.py – animation frame generator for Konqi."""
 
 from __future__ import annotations
 
@@ -42,19 +30,11 @@ def _make_canvas(w: int, h: int) -> Image.Image:
     return Image.new("RGBA", (w, h), (0, 0, 0, 0))
 
 def _unified_canvas_size(base_w: int, base_h: int) -> Tuple[int, int]:
-    """Single canvas footprint shared by every per-frame animation.
-
-    Keeping every QPixmap the same size eliminates the inter-frame and
-    inter-state window-resize jumps that look uncanny on screen.
-    """
     return base_w + CANVAS_X_PAD * 2, base_h + CANVAS_TOP
 
 def _paste_grounded(canvas: Image.Image, sprite: Image.Image,
                     x_offset: int = 0, y_offset: int = 0) -> None:
-    """Paste sprite anchored to bottom-center of canvas.
-
-    y_offset > 0 lifts the sprite UP (used for bobs/hops).
-    """
+    """Bottom-center anchor. y_offset > 0 lifts UP (for bobs)."""
     cw, ch = canvas.size
     sw, sh = sprite.size
     ox = (cw - sw) // 2 + x_offset

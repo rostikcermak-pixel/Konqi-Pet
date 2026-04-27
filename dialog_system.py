@@ -1,11 +1,4 @@
-"""
-dialog_system.py - Interactive dialog data and selection.
-
-One organised list of dialogs covering: wellbeing, opinions, challenges,
-PC knowledge, personal questions, and meta/playful prompts.
-Each entry has exactly two choices that map to a PetState result.
-This module is pure data + selection logic. No Qt, no threads, no timers.
-"""
+"""dialog_system.py - dialog data and random selection logic."""
 from __future__ import annotations
 
 import getpass
@@ -23,7 +16,7 @@ def format_text(text: str) -> str:
 
 DIALOGS: List[Dict] = [
 
-    # ── Wellbeing ─────────────────────────────────────────────────────────────
+    # wellbeing
     {
         "text": "Hey {user}, when did you last drink water?",
         "choices": [
@@ -67,7 +60,7 @@ DIALOGS: List[Dict] = [
         ],
     },
 
-    # ── Opinions & Debates ────────────────────────────────────────────────────
+    # opinions
     {
         "text": "Tabs or spaces, {user}?",
         "choices": [
@@ -118,7 +111,7 @@ DIALOGS: List[Dict] = [
         ],
     },
 
-    # ── Challenges ────────────────────────────────────────────────────────────
+    # challenges
     {
         "text": "Can you name the shortcut for undo without thinking?",
         "choices": [
@@ -148,7 +141,7 @@ DIALOGS: List[Dict] = [
         ],
     },
 
-    # ── Real PC Knowledge ─────────────────────────────────────────────────────
+    # pc tips
     {
         "text": "Did you know Ctrl+R in bash searches your command history, {user}?",
         "choices": [
@@ -199,7 +192,7 @@ DIALOGS: List[Dict] = [
         ],
     },
 
-    # ── Personal / Meta ───────────────────────────────────────────────────────
+    # personal
     {
         "text": "Coffee or tea, {user}?",
         "choices": [
@@ -257,7 +250,7 @@ DIALOGS: List[Dict] = [
         ],
     },
 
-    # ── Games ─────────────────────────────────────────────────────────────────
+    # games
     {
         "text": "Want to play a game, {user}?",
         "choices": [
@@ -280,7 +273,7 @@ DIALOGS: List[Dict] = [
         ],
     },
 
-    # ── Konqi-specific ────────────────────────────────────────────────────────
+    # konqi
     {
         "text": "Can I try climbing the wall?",
         "choices": [
