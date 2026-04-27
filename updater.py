@@ -1,12 +1,4 @@
-"""
-updater.py — GitHub release update checker for Konqi-Pet.
-
-Pure stdlib (urllib + json + subprocess). Designed to be called from a
-QThread so the UI stays responsive while the network request is in
-flight. apply_update() runs `git pull --ff-only` when the install is
-a git checkout; otherwise it returns the release URL so the user can
-download manually.
-"""
+"""updater.py — check GitHub for a newer release and apply via git pull."""
 from __future__ import annotations
 
 import json
