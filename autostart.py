@@ -1,5 +1,5 @@
 """
-autostart.py – Manage the XDG autostart .desktop entry for Konqi Shimeji.
+autostart.py - Manage the XDG autostart .desktop entry for Konqi Shimeji.
 
 Works on any XDG-compliant desktop (KDE, GNOME, XFCE, etc.).
 """
@@ -25,7 +25,7 @@ _TEMPLATE = """\
 Type=Application
 Name=Konqi Shimeji
 GenericName=Desktop Pet
-Comment=Konqi the KDE dragon – your interactive desktop companion
+Comment=Konqi the KDE dragon - your interactive desktop companion
 Exec=python3 {exec_path}
 Icon=konqueror
 Categories=Game;Utility;

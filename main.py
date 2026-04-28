@@ -1,6 +1,6 @@
                       
 """
-main.py – Konqi Shimeji: Chaotic Gremlin Edition
+main.py - Konqi Shimeji: Chaotic Gremlin Edition
 
 A deliberately annoying, sarcastic, interactive desktop companion.
 Usage:
@@ -107,10 +107,10 @@ class DialogueBubble(QWidget):
 
     Rotation modes
     --------------
-    "normal"        – tail points down-centre, bubble sits above Konqi
-    "climb_right"   – whole bubble rotated 90° CCW (text reads upward);
+    "normal"        - tail points down-centre, bubble sits above Konqi
+    "climb_right"   - whole bubble rotated 90° CCW (text reads upward);
                       tail points left toward the right-side wall
-    "climb_left"    – whole bubble rotated 90° CW (text reads downward);
+    "climb_left"    - whole bubble rotated 90° CW (text reads downward);
                       tail points right toward the left-side wall
 
     The window is always sized to fit the ROTATED content so Qt never
@@ -1248,7 +1248,7 @@ class KonqiWindow(QWidget):
         ]))
 
     def _start_flee_cursor(self):
-        """Run away from cursor — moves both X and Y, uses walk animation."""
+        """Run away from cursor - moves both X and Y, uses walk animation."""
         if self._flee_active: return
         self._flee_active = True
         self._flee_timer = 0.0
@@ -1750,7 +1750,7 @@ class KonqiApp(QApplication):
     def __init__(self, argv, config):
         super().__init__(argv)
         self.setApplicationName("Konqi Shimeji")
-        self.setApplicationDisplayName("Konqi – Chaos Gremlin Edition")
+        self.setApplicationDisplayName("Konqi - Chaos Gremlin Edition")
         self.setQuitOnLastWindowClosed(False)
         self._cfg = config
         self._konqis: List[KonqiWindow] = []
@@ -2062,7 +2062,7 @@ class KonqiApp(QApplication):
         self._tray = QSystemTrayIcon(self)
         self._tray.setIcon(self.style().standardIcon(
             self.style().StandardPixmap.SP_ComputerIcon if _QT6 else self.style().SP_ComputerIcon))
-        self._tray.setToolTip("Konqi Shimeji – Chaos Gremlin Edition")
+        self._tray.setToolTip("Konqi Shimeji - Chaos Gremlin Edition")
         tm = QMenu()
         tm.setStyleSheet("QMenu{background:#1a0a2e;color:#FFD93D;border:1px solid #CC5DE8;}"
                          "QMenu::item{padding:5px 16px;}QMenu::item:selected{background:#2D1B4E;}")
@@ -2116,7 +2116,7 @@ class KonqiApp(QApplication):
         self.quit()
 
 def main():
-    parser = argparse.ArgumentParser(description="Konqi Shimeji – Chaos Gremlin Edition")
+    parser = argparse.ArgumentParser(description="Konqi Shimeji - Chaos Gremlin Edition")
     parser.add_argument("--debug",          action="store_true")
     parser.add_argument("--hyper",          action="store_true")
     parser.add_argument("--count",          type=int, default=None)

@@ -1,5 +1,5 @@
 """
-animation.py – Animation state machine for Konqi Shimeji.
+animation.py - Animation state machine for Konqi Shimeji.
 
 States added: LOOK_AROUND, WAVE
 Behaviour tuning:

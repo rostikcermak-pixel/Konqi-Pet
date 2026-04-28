@@ -1,5 +1,5 @@
 """
-physics.py – Physics engine for Konqi Shimeji.
+physics.py - Physics engine for Konqi Shimeji.
 
 Climb fix: X is pinned absolutely to the screen edge every tick,
 using the fixed climb canvas width so the sprite never drifts or clips.
@@ -18,11 +18,11 @@ try:
     from ewmh import EWMH
     _ewmh = EWMH()
     _EWMH_AVAILABLE = True
-    log.info("python-ewmh available – window climbing enabled")
+    log.info("python-ewmh available - window climbing enabled")
 except Exception:
     _ewmh = None                                    
     _EWMH_AVAILABLE = False
-    log.info("python-ewmh not available – climbing screen edges only")
+    log.info("python-ewmh not available - climbing screen edges only")
 
                                                                              
            

@@ -2,7 +2,7 @@
 
 # Konqi Pet 🐉
 
-**A chaotic desktop pet for Linux — using KDE's own mascot**
+**A chaotic desktop pet for Linux - using KDE's own mascot**
 
 *He walks. He climbs. He judges you. He has opinions about your tab count.*
 
@@ -19,7 +19,7 @@
 
 Konqi is KDE's official mascot. He lives on your desktop now. He was not asked.
 
-He walks around your screen, climbs the edges, falls off things, and falls asleep when you're boring. Every few seconds something random happens — he teleports, trips over nothing, summons a second copy of himself to argue with, or writes a bad poem about whatever you have open. He watches what apps you use and has escalating opinions the longer you stay in them.
+He walks around your screen, climbs the edges, falls off things, and falls asleep when you're boring. Every few seconds something random happens - he teleports, trips over nothing, summons a second copy of himself to argue with, or writes a bad poem about whatever you have open. He watches what apps you use and has escalating opinions the longer you stay in them.
 
 <div align="center">
 
@@ -31,14 +31,14 @@ He walks around your screen, climbs the edges, falls off things, and falls aslee
 
 ## What he does
 
-- **Walks, climbs, falls, sleeps** — full physics with gravity, wall climbing, and bouncing
-- **Watches your apps** — reacts to 200+ specific window titles with unique dialogue
-- **Escalates** — two minutes open is a comment, two hours is a confrontation
-- **Chaos events** — teleport, spin, drift, shake, dive, trip, glitch, stare, scribble, summon twin
+- **Walks, climbs, falls, sleeps** - full physics with gravity, wall climbing, and bouncing
+- **Watches your apps** - reacts to 200+ specific window titles with unique dialogue
+- **Escalates** - two minutes open is a comment, two hours is a confrontation
+- **Chaos events** - teleport, spin, drift, shake, dive, trip, glitch, stare, scribble, summon twin
 - **Writes bad poems** about whatever you have open. They are not good.
 - **Plays tic-tac-toe** with you and gets smug about it
 - **Reacts to CPU, notifications, typing speed, wallpaper colour**
-- **Remembers between sessions** — comfort level builds over time, delete `gremlin_memory.json` to reset his opinions of you (they will re-form quickly)
+- **Remembers between sessions** - comfort level builds over time, delete `gremlin_memory.json` to reset his opinions of you (they will re-form quickly)
 
 ---
 
@@ -52,7 +52,7 @@ He walks around your screen, climbs the edges, falls off things, and falls aslee
 
 </div>
 
-All animations are generated automatically from these four source PNGs — no sprite sheets needed.
+All animations are generated automatically from these four source PNGs - no sprite sheets needed.
 
 ---
 
@@ -85,7 +85,7 @@ python3 main.py --quiet          # no speech bubbles
 python3 main.py --no-chaos       # just a normal walking dragon
 ```
 
-Right-click Konqi for the menu — speed, chaos settings, tic-tac-toe, tips, actions, autostart, and updates.
+Right-click Konqi for the menu - speed, chaos settings, tic-tac-toe, tips, actions, autostart, and updates.
 
 ---
 
@@ -98,7 +98,7 @@ python3 import_sprite.py your_sprite.png
 python3 main.py
 ```
 
-The project uses four sprites — replace any and restart, frames regenerate automatically:
+The project uses four sprites - replace any and restart, frames regenerate automatically:
 
 | File | Used for |
 |---|---|

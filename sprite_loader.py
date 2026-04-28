@@ -1,4 +1,4 @@
-"""sprite_loader.py – animation frame generator for Konqi."""
+"""sprite_loader.py - animation frame generator for Konqi."""
 
 from __future__ import annotations
 
@@ -112,7 +112,7 @@ def gen_look_around_frames(base: Image.Image, n: int = 14) -> List[Image.Image]:
     return frames
 
 def gen_wave_frames(base: Image.Image, n: int = 14) -> List[Image.Image]:
-    """Excited wave: big tilt, high hop, pulse scale — clearly celebrating."""
+    """Excited wave: big tilt, high hop, pulse scale - clearly celebrating."""
     w, h = base.size
     cw, ch = _unified_canvas_size(w, h)
     frames = []
@@ -131,7 +131,7 @@ def gen_wave_frames(base: Image.Image, n: int = 14) -> List[Image.Image]:
     return frames
 
 def gen_sleep_frames(base: Image.Image, n: int = 8) -> List[Image.Image]:
-    """Gentle breathing — nose bubble is baked into the sprite."""
+    """Gentle breathing - nose bubble is baked into the sprite."""
     w, h = base.size
     cw, ch = _unified_canvas_size(w, h)
     frames = []
@@ -154,7 +154,7 @@ def gen_climb_frames(base: Image.Image, n: int = 8,
 
     Fixes vs old version:
     - climb_left now FLIPS the base first so Konqi faces inward (toward screen centre)
-    - Canvas sized to actual sprite content bbox — eliminates the ~17px float gap
+    - Canvas sized to actual sprite content bbox - eliminates the ~17px float gap
     - Physics X-pin uses canvas_w which now correctly hugs the wall
 
     Returns (frames, canvas_w, canvas_h).
@@ -302,7 +302,7 @@ def _build_animations(assets_dir: Path) -> Dict[str, List[Image.Image]]:
     sleep_s = _load_sprite(assets_dir, "sleep")
     climb_s = _load_sprite(assets_dir, "climb")
 
-    log.info("Sprites — walk:%s idle:%s sleep:%s climb:%s",
+    log.info("Sprites - walk:%s idle:%s sleep:%s climb:%s",
              walk_s.size, idle_s.size, sleep_s.size, climb_s.size)
 
                                                                                         
@@ -418,7 +418,7 @@ def get_cached_animations(assets_dir: Optional[Path] = None
     for key in ("walk", "idle", "sleep", "climb", "base"):
         sp = assets_dir / SPRITE_FILES.get(key, "konqi_base.png")
         if sp.exists() and sp.stat().st_mtime > cache_mtime:
-            log.info("Sprite %s newer than cache — regenerating", sp.name)
+            log.info("Sprite %s newer than cache - regenerating", sp.name)
             return None
 
     cs_dir = frames_dir / "_climb_size"
