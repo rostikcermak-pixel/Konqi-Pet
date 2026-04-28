@@ -29,9 +29,14 @@ fi
 PY_VERSION=$("$python_bin" -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
 echo "✓ Found Python $PY_VERSION at $python_bin"
 
-# ── Virtual environment ────────────────────────────────────────────────────
+# Virtual environment - check for actual python binary, not just the directory
+if [[ -d "$VENV_DIR" && ! -f "$VENV_DIR/bin/python" ]]; then
+    echo "→ Found incomplete virtual environment, removing and recreating..."
+    rm -rf "$VENV_DIR"
+fi
+
 if [[ ! -d "$VENV_DIR" ]]; then
-    echo "→ Creating virtual environment at $VENV_DIR …"
+    echo "→ Creating virtual environment at $VENV_DIR ..."
     "$python_bin" -m venv "$VENV_DIR"
 fi
 

@@ -1953,9 +1953,9 @@ class GremlinBrain:
 
         self._idle_seconds:  float = 0.0
 
-        self._dialogue_cooldown: float = 0.0
+        self._dialogue_cooldown: float = 30.0
 
-        self._tip_cooldown:      float = 90.0
+        self._tip_cooldown:      float = 180.0
 
         self._hw_roast_done:     bool = False
 
@@ -1965,7 +1965,7 @@ class GremlinBrain:
 
         self._title_dialogue_counts:    Dict[str, int] = {}
 
-        self._chaos_cooldown: float = 30.0
+        self._chaos_cooldown: float = 60.0
 
         self._last_mouse_pos: Optional[Tuple[int, int]] = None
 
@@ -2001,7 +2001,7 @@ class GremlinBrain:
 
         self._boredom_seconds: float = 0.0
 
-        self._boredom_action_cooldown: float = random.uniform(60, 120)
+        self._boredom_action_cooldown: float = random.uniform(120, 200)
 
         self._wallpaper_checked: bool = False
 
@@ -2043,7 +2043,7 @@ class GremlinBrain:
 
         self._idle_seconds += delta_seconds
 
-        if self._idle_seconds > 45 and self._dialogue_cooldown <= 0:
+        if self._idle_seconds > 90 and self._dialogue_cooldown <= 0:
 
             self._emit_idle_taunt()
 
@@ -2053,7 +2053,7 @@ class GremlinBrain:
 
             self._emit(GremlinEvent(kind="tip", text=random.choice(tip_pool), priority=2))
 
-            self._tip_cooldown = random.uniform(120, 240)
+            self._tip_cooldown = random.uniform(240, 480)
 
         if not self._hw_roast_done:
 
@@ -2091,7 +2091,7 @@ class GremlinBrain:
 
             self._emit(GremlinEvent(kind="chaos_action", action=action, priority=0))
 
-            self._chaos_cooldown = random.uniform(15, 45)
+            self._chaos_cooldown = random.uniform(45, 90)
 
         hour = datetime.datetime.now().hour
 
@@ -2121,7 +2121,7 @@ class GremlinBrain:
 
                 self._emit(GremlinEvent(kind="chaos_action", action=action, priority=1))
 
-            self._boredom_action_cooldown = random.uniform(30, 80)
+            self._boredom_action_cooldown = random.uniform(80, 150)
 
         self._typing_cooldown = max(0.0, self._typing_cooldown - delta_seconds)
 

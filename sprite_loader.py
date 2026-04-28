@@ -41,6 +41,7 @@ def _paste_grounded(canvas: Image.Image, sprite: Image.Image,
     oy = ch - sh - y_offset
     canvas.paste(sprite, (ox, oy), sprite)
 
+
 def _load_sprite(assets_dir: Path, key: str) -> Image.Image:
     fname = SPRITE_FILES.get(key, SPRITE_FILES["base"])
     path  = assets_dir / fname
