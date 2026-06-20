@@ -92,7 +92,7 @@ def load_config() -> dict:
         try:
             data = json.loads(path.read_text())
             defaults.update({k: v for k, v in data.items() if not k.startswith("_")})
-        except Exception:
+        except (FileNotFoundError, json.JSONDecodeError, OSError):
             pass
     return defaults
 

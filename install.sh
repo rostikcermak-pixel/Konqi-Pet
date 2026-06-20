@@ -43,8 +43,10 @@ cd "$SCRIPT_DIR"
 python_bin=""
 for py in python3.13 python3.12 python3.11 python3.10 python3; do
     if command -v "$py" &>/dev/null; then
-        python_bin="$py"
-        break
+        if "$py" -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)'; then
+            python_bin="$py"
+            break
+        fi
     fi
 done
 
