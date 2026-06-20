@@ -1,20 +1,47 @@
 #!/usr/bin/env bash
-# install.sh – One-shot setup for Konqi Shimeji on Linux
-# Usage:  bash install.sh
+# install.sh - One-shot setup for Konqi Pet on Linux.
+#
+# Run locally:
+#   bash install.sh
+#
+# Or one-line install (clones the repo for you):
+#   curl -fsSL https://raw.githubusercontent.com/rostikcermak-pixel/Konqi-Pet/main/install.sh | bash
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VENV_DIR="$SCRIPT_DIR/.venv"
+REPO_URL="https://github.com/rostikcermak-pixel/Konqi-Pet"
+INSTALL_DIR="${KONQI_DIR:-$HOME/.local/share/konqi-pet}"
 
 echo "╔══════════════════════════════════════════════╗"
-echo "║   🐉  Konqi Shimeji – Linux Setup Script     ║"
+echo "║   🐉  Konqi Pet - Linux Setup Script         ║"
 echo "╚══════════════════════════════════════════════╝"
 echo
 
+# ── Locate the source, cloning it if we were piped from curl ────────────────
+if [[ -n "${BASH_SOURCE[0]:-}" ]] && [[ -f "$(dirname "${BASH_SOURCE[0]}")/main.py" ]]; then
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+else
+    echo "→ No local checkout detected, cloning into $INSTALL_DIR ..."
+    if ! command -v git &>/dev/null; then
+        echo "ERROR: git is required for the one-line install. Install git and retry."
+        exit 1
+    fi
+    if [[ -d "$INSTALL_DIR/.git" ]]; then
+        echo "→ Existing checkout found, updating..."
+        git -C "$INSTALL_DIR" pull --ff-only || echo "  (could not fast-forward, using existing copy)"
+    else
+        mkdir -p "$(dirname "$INSTALL_DIR")"
+        git clone --depth 1 "$REPO_URL" "$INSTALL_DIR"
+    fi
+    SCRIPT_DIR="$INSTALL_DIR"
+fi
+
+VENV_DIR="$SCRIPT_DIR/.venv"
+cd "$SCRIPT_DIR"
+
 # ── Python version check ───────────────────────────────────────────────────
 python_bin=""
-for py in python3.12 python3.11 python3.10 python3; do
+for py in python3.13 python3.12 python3.11 python3.10 python3; do
     if command -v "$py" &>/dev/null; then
         python_bin="$py"
         break
@@ -29,7 +56,7 @@ fi
 PY_VERSION=$("$python_bin" -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
 echo "✓ Found Python $PY_VERSION at $python_bin"
 
-# Virtual environment - check for actual python binary, not just the directory
+# ── Virtual environment ────────────────────────────────────────────────────
 if [[ -d "$VENV_DIR" && ! -f "$VENV_DIR/bin/python" ]]; then
     echo "→ Found incomplete virtual environment, removing and recreating..."
     rm -rf "$VENV_DIR"
@@ -53,7 +80,7 @@ echo "→ Installing Python dependencies…"
 # ── Optional dependencies ──────────────────────────────────────────────────
 echo "→ Installing optional dependencies (psutil, python-xlib, ewmh)…"
 "$PIP" install --quiet psutil python-xlib ewmh 2>/dev/null || \
-    echo "  (some optional packages unavailable – skipping)"
+    echo "  (some optional packages unavailable - skipping)"
 
 # ── System Qt/xcb dependencies reminder ────────────────────────────────────
 echo
@@ -67,46 +94,63 @@ echo
 LAUNCHER="$SCRIPT_DIR/run.sh"
 cat > "$LAUNCHER" <<EOF
 #!/usr/bin/env bash
-# Auto-generated launcher – uses the local venv
+# Auto-generated launcher - uses the local venv
 SCRIPT_DIR="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
 exec "\$SCRIPT_DIR/.venv/bin/python" "\$SCRIPT_DIR/main.py" "\$@"
 EOF
 chmod +x "$LAUNCHER"
 echo "✓ Launcher created: $LAUNCHER"
 
-# ── Autostart (optional) ───────────────────────────────────────────────────
-AUTOSTART_DIR="$HOME/.config/autostart"
-DESKTOP_FILE="$AUTOSTART_DIR/konqi-shimeji.desktop"
-
-echo
-read -r -p "Enable autostart on login? [y/N] " yn
-if [[ "$yn" =~ ^[Yy]$ ]]; then
-    mkdir -p "$AUTOSTART_DIR"
-    cat > "$DESKTOP_FILE" <<DESKTOP
+# ── Application-menu entry (so he shows up in your launcher) ────────────────
+APPS_DIR="$HOME/.local/share/applications"
+mkdir -p "$APPS_DIR"
+cat > "$APPS_DIR/konqi-pet.desktop" <<DESKTOP
 [Desktop Entry]
 Type=Application
-Name=Konqi Shimeji
+Name=Konqi Pet
 GenericName=Desktop Pet
-Comment=Konqi the KDE dragon – your interactive desktop companion
+Comment=Konqi the KDE dragon - your chaotic desktop companion
 Exec=$LAUNCHER
-Icon=konqueror
+Icon=$SCRIPT_DIR/assets/konqi_preview.png
+Categories=Game;Utility;
+Terminal=false
+StartupNotify=false
+DESKTOP
+echo "✓ Added to application menu"
+
+# ── Autostart (optional, only when run interactively) ──────────────────────
+if [[ -t 0 ]]; then
+    echo
+    read -r -p "Enable autostart on login? [y/N] " yn
+    if [[ "$yn" =~ ^[Yy]$ ]]; then
+        AUTOSTART_DIR="$HOME/.config/autostart"
+        mkdir -p "$AUTOSTART_DIR"
+        cat > "$AUTOSTART_DIR/konqi-pet.desktop" <<DESKTOP
+[Desktop Entry]
+Type=Application
+Name=Konqi Pet
+GenericName=Desktop Pet
+Comment=Konqi the KDE dragon - your chaotic desktop companion
+Exec=$LAUNCHER
+Icon=$SCRIPT_DIR/assets/konqi_preview.png
 Categories=Game;Utility;
 X-GNOME-Autostart-enabled=true
 X-KDE-autostart-after=panel
 StartupNotify=false
 DESKTOP
-    chmod 755 "$DESKTOP_FILE"
-    echo "✓ Autostart enabled: $DESKTOP_FILE"
+        echo "✓ Autostart enabled"
+    fi
+else
+    echo "ℹ  Skipping autostart prompt (non-interactive). To autostart on login,"
+    echo "   re-run: bash \"$SCRIPT_DIR/install.sh\""
 fi
 
 echo
 echo "╔══════════════════════════════════════════╗"
-echo "║  ✅  Installation complete!              ║"
+echo "║  ✅  Installation complete!               ║"
 echo "╟──────────────────────────────────────────╢"
-echo "║  Run with:  bash run.sh                  ║"
-echo "║  Or:        $VENV_DIR/bin/python main.py ║"
-echo "║                                          ║"
-echo "║  Flags:  --hyper   (energetic mode)      ║"
-echo "║          --count 3 (spawn 3 Konqis)      ║"
-echo "║          --debug   (verbose logging)     ║"
+echo "║  Run it now:   bash run.sh               ║"
+echo "║  Flags: --hyper  --count 3  --quiet      ║"
 echo "╚══════════════════════════════════════════╝"
+echo
+echo "→ Launch Konqi:  $LAUNCHER"

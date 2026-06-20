@@ -1,0 +1,55 @@
+# Flatpak manifest for Konqi Pet.
+#
+# Local build & install (network is allowed during a local build, so the pip
+# step below resolves fine):
+#
+#   flatpak install -y flathub org.kde.Platform//6.8 org.kde.Sdk//6.8
+#   flatpak-builder --user --install --force-clean build-dir \
+#       flatpak/io.github.rostikcermak_pixel.KonqiPet.yaml
+#   flatpak run io.github.rostikcermak_pixel.KonqiPet
+#
+# NOTE for a future Flathub submission: Flathub builds run offline, so the
+# `pip3 install` below must be replaced with pinned, hashed sources generated
+# by flatpak-pip-generator (see flatpak/README.md). Everything else here is
+# Flathub-shaped already.
+app-id: io.github.rostikcermak_pixel.KonqiPet
+runtime: org.kde.Platform
+runtime-version: '6.8'
+sdk: org.kde.Sdk
+command: konqi-pet
+finish-args:
+  - --share=ipc
+  - --socket=x11
+  - --socket=fallback-x11
+  - --socket=wayland
+  - --device=dri
+  - --socket=pulseaudio
+  # App-detection (xdotool) and the self-updater (git) are best-effort and
+  # degrade gracefully when unavailable inside the sandbox.
+  - --share=network
+  - --talk-name=org.freedesktop.Notifications
+modules:
+  - name: python-deps
+    buildsystem: simple
+    build-commands:
+      - pip3 install --prefix=${FLATPAK_DEST} --no-warn-script-location
+        PyQt6 Pillow psutil requests
+
+  - name: konqi-pet
+    buildsystem: simple
+    build-commands:
+      # Application sources
+      - install -d ${FLATPAK_DEST}/share/konqi-pet
+      - cp -r *.py assets config.json ${FLATPAK_DEST}/share/konqi-pet/
+      # Launcher on PATH
+      - install -Dm755 flatpak/konqi-pet.launcher ${FLATPAK_DEST}/bin/konqi-pet
+      # Desktop entry, icon, and AppStream metadata
+      - install -Dm644 flatpak/io.github.rostikcermak_pixel.KonqiPet.desktop
+        ${FLATPAK_DEST}/share/applications/io.github.rostikcermak_pixel.KonqiPet.desktop
+      - install -Dm644 assets/konqi_preview.png
+        ${FLATPAK_DEST}/share/icons/hicolor/256x256/apps/io.github.rostikcermak_pixel.KonqiPet.png
+      - install -Dm644 flatpak/io.github.rostikcermak_pixel.KonqiPet.metainfo.xml
+        ${FLATPAK_DEST}/share/metainfo/io.github.rostikcermak_pixel.KonqiPet.metainfo.xml
+    sources:
+      - type: dir
+        path: ..

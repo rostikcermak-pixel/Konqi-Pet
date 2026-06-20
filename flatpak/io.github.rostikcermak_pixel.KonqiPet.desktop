@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Konqi Pet
+GenericName=Desktop Pet
+Comment=Konqi the KDE dragon - your chaotic desktop companion
+Exec=konqi-pet
+Icon=io.github.rostikcermak_pixel.KonqiPet
+Categories=Game;Utility;
+Terminal=false
+StartupNotify=false
