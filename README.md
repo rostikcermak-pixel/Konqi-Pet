@@ -38,7 +38,7 @@ He walks around your screen, climbs the edges, falls off things, and falls aslee
 - **Writes bad poems** about whatever you have open. They are not good.
 - **Plays tic-tac-toe** with you and gets smug about it
 - **Reacts to CPU, notifications, typing speed, wallpaper colour**
-- **Remembers between sessions** - comfort level builds over time, delete `gremlin_memory.json` to reset his opinions of you (they will re-form quickly)
+- **Remembers between sessions** - comfort level builds over time, delete `~/.local/share/konqi-pet/gremlin_memory.json` to reset his opinions of you (they will re-form quickly)
 
 ---
 
@@ -58,6 +58,14 @@ All animations are generated automatically from these four source PNGs - no spri
 
 ## Install
 
+**One line** (clones the repo, sets up a venv, adds him to your app menu):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/rostikcermak-pixel/Konqi-Pet/main/install.sh | bash
+```
+
+**Manual:**
+
 ```bash
 git clone https://github.com/rostikcermak-pixel/Konqi-Pet
 cd Konqi-Pet
@@ -69,6 +77,15 @@ python3 main.py
 ```bash
 pip install --break-system-packages PyQt6 Pillow psutil
 python3 main.py
+```
+
+**Flatpak** (build it yourself - see [`flatpak/README.md`](flatpak/README.md)):
+
+```bash
+flatpak install -y flathub org.kde.Platform//6.8 org.kde.Sdk//6.8
+flatpak-builder --user --install --force-clean build-dir \
+    flatpak/io.github.rostikcermak_pixel.KonqiPet.yaml
+flatpak run io.github.rostikcermak_pixel.KonqiPet
 ```
 
 **Dependencies:** Python 3.10+, PyQt6 (or PyQt5), Pillow. `psutil` is optional but recommended. `xdotool` for app detection.

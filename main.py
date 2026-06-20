@@ -63,8 +63,22 @@ except ImportError:
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(name)s: %(message)s")
 log = logging.getLogger("konqi.main")
 
-CONFIG_PATH = HERE / "config.json"
 ASSETS_DIR  = HERE / "assets"
+
+# Shipped defaults live next to the script; user overrides go to an XDG
+# config dir so the app works when installed read-only (e.g. Flatpak).
+BUNDLED_CONFIG = HERE / "config.json"
+
+def _config_dir() -> Path:
+    base = os.environ.get("XDG_CONFIG_HOME") or str(Path.home() / ".config")
+    d = Path(base) / "konqi-pet"
+    try:
+        d.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        return HERE
+    return d
+
+CONFIG_PATH = _config_dir() / "config.json"
 
 def load_config() -> dict:
     defaults = dict(
@@ -73,11 +87,13 @@ def load_config() -> dict:
         always_on_top=True, multi_monitor=False, sprite_height_px=96,
         debug_mode=False, chaos_mode=True, quiet_mode=False,
     )
-    try:
-        data = json.loads(CONFIG_PATH.read_text())
-        defaults.update({k: v for k, v in data.items() if not k.startswith("_")})
-    except Exception:
-        pass
+    # Layer the configs: hardcoded -> shipped/legacy file -> user file.
+    for path in (BUNDLED_CONFIG, CONFIG_PATH):
+        try:
+            data = json.loads(path.read_text())
+            defaults.update({k: v for k, v in data.items() if not k.startswith("_")})
+        except (FileNotFoundError, json.JSONDecodeError, OSError):
+            pass
     return defaults
 
 def save_config(cfg: dict) -> None:

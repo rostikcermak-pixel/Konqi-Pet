@@ -1,0 +1,12 @@
+#!/bin/sh
+# Launcher installed to /app/bin/konqi-pet inside the Flatpak sandbox.
+APPDIR=/app/share/konqi-pet
+
+# Make the pip-installed dependencies under /app importable regardless of the
+# runtime's Python minor version.
+for d in /app/lib/python3.*/site-packages; do
+    [ -d "$d" ] && PYTHONPATH="$d:${PYTHONPATH:-}"
+done
+export PYTHONPATH
+
+exec python3 "$APPDIR/main.py" "$@"

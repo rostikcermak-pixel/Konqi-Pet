@@ -89,7 +89,20 @@ except ImportError:
 
     _PSUTIL = False
 
-MEMORY_FILE = Path(__file__).parent / "gremlin_memory.json"
+# Persistent memory lives in an XDG data dir so the app works when installed
+# read-only (e.g. Flatpak). A pre-existing file next to the script is migrated.
+_LEGACY_MEMORY = Path(__file__).parent / "gremlin_memory.json"
+
+def _data_dir() -> Path:
+    base = os.environ.get("XDG_DATA_HOME") or str(Path.home() / ".local" / "share")
+    d = Path(base) / "konqi-pet"
+    try:
+        d.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        return Path(__file__).parent
+    return d
+
+MEMORY_FILE = _data_dir() / "gremlin_memory.json"
 
 APP_CATEGORIES: Dict[str, List[str]] = {
 
@@ -1285,9 +1298,11 @@ def load_memory() -> dict:
 
     try:
 
-        if MEMORY_FILE.exists():
+        source = MEMORY_FILE if MEMORY_FILE.exists() else _LEGACY_MEMORY
 
-            return json.loads(MEMORY_FILE.read_text())
+        if source.exists():
+
+            return json.loads(source.read_text())
 
     except Exception:
 

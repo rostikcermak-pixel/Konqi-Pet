@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.rostikcermak_pixel.KonqiPet</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>Konqi Pet</name>
+  <summary>A chaotic desktop pet using KDE's dragon mascot</summary>
+
+  <description>
+    <p>
+      Konqi is KDE's official mascot, and now he lives on your desktop. He
+      walks around your screen, climbs the edges, falls off things, and falls
+      asleep when you are boring.
+    </p>
+    <p>
+      Every few seconds something random happens - he teleports, trips over
+      nothing, summons a second copy of himself to argue with, or writes a bad
+      poem about whatever you have open. He watches which apps you use and has
+      escalating opinions the longer you stay in them.
+    </p>
+    <p>Features:</p>
+    <ul>
+      <li>Full physics - gravity, wall climbing, bouncing</li>
+      <li>Reacts to 200+ window titles with unique dialogue</li>
+      <li>Chaos events: teleport, spin, drift, dive, glitch, summon twin</li>
+      <li>Plays tic-tac-toe and gets smug about it</li>
+      <li>Reacts to CPU, notifications, typing speed, and wallpaper colour</li>
+      <li>Remembers you between sessions</li>
+    </ul>
+  </description>
+
+  <launchable type="desktop-id">io.github.rostikcermak_pixel.KonqiPet.desktop</launchable>
+
+  <url type="homepage">https://github.com/rostikcermak-pixel/Konqi-Pet</url>
+  <url type="bugtracker">https://github.com/rostikcermak-pixel/Konqi-Pet/issues</url>
+
+  <developer id="io.github.rostikcermak_pixel">
+    <name>rostikcermak-pixel</name>
+  </developer>
+
+  <screenshots>
+    <screenshot type="default">
+      <caption>Konqi standing on the desktop</caption>
+      <image>https://raw.githubusercontent.com/rostikcermak-pixel/Konqi-Pet/main/assets/konqi_preview.png</image>
+    </screenshot>
+  </screenshots>
+
+  <content_rating type="oars-1.1"/>
+
+  <releases>
+    <release version="1.0.0" date="2026-06-20">
+      <description>
+        <p>First packaged release.</p>
+      </description>
+    </release>
+  </releases>
+</component>
