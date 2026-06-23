@@ -77,7 +77,7 @@ echo "→ Upgrading pip…"
 
 # ── Core dependencies ──────────────────────────────────────────────────────
 echo "→ Installing Python dependencies…"
-"$PIP" install --quiet PyQt6 Pillow requests
+"$PIP" install --quiet PyQt6 Pillow
 
 # ── Optional dependencies ──────────────────────────────────────────────────
 echo "→ Installing optional dependencies (psutil, python-xlib, ewmh)…"
