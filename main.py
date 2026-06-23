@@ -1787,6 +1787,8 @@ class KonqiApp(QApplication):
         self._loading_label = None
         self._available_update: Optional[tuple] = None
         self._update_thread: Optional[UpdateCheckThread] = None
+        self._manual_check = False           # True when the user clicked "Check for Updates"
+        self._update_found_this_run = False
         self._show_loading()
         self._loader = SpriteLoaderThread(force=False)
         self._loader.done.connect(self._on_sprites_loaded)
@@ -1838,6 +1840,7 @@ class KonqiApp(QApplication):
     def _kick_update_check(self):
         if getattr(self, "_update_thread", None) is not None and self._update_thread.isRunning():
             return
+        self._update_found_this_run = False
         self._update_thread = UpdateCheckThread(__version__)
         self._update_thread.found.connect(self._on_update_found)
         self._update_thread.finished.connect(self._on_update_check_done)
@@ -1846,8 +1849,16 @@ class KonqiApp(QApplication):
     def _on_update_check_done(self):
         self._cfg["last_update_check"] = int(time.time())
         save_config(self._cfg)
+        # Give the user feedback on a manual check so it never looks like a no-op.
+        if self._manual_check and not self._update_found_this_run:
+            konqi = self._konqis[0] if self._konqis else None
+            if konqi:
+                konqi._show_bubble(f"You're up to date (v{__version__}). Obviously.",
+                                   duration_ms=4000)
+        self._manual_check = False
 
     def _on_update_found(self, tag: str, url: str):
+        self._update_found_this_run = True
         self._available_update = (tag, url)
         if self._konqis:
             self._konqis[0]._show_bubble(
@@ -1858,6 +1869,7 @@ class KonqiApp(QApplication):
         konqi = self._konqis[0] if self._konqis else None
         if konqi:
             konqi._show_bubble("Checking for updates…", duration_ms=2500)
+        self._manual_check = True
         self._cfg["last_update_check"] = 0
         self._kick_update_check()
 
