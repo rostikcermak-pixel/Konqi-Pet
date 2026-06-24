@@ -6,7 +6,7 @@
   "fps":               60,
   "cpu_reactions":     true,
   "cpu_high_threshold": 85,
-  "sound_effects":     true,
+  "sound_effects":     false,
   "always_on_top":     true,
   "multi_monitor":     false,
   "sprite_height_px":  96,

@@ -14,9 +14,9 @@ from __future__ import annotations
 
 import datetime
 
-import hashlib
-
 import re
+
+import shutil
 
 import json
 
@@ -32,7 +32,7 @@ import subprocess
 
 import time
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from pathlib import Path
 
@@ -1472,7 +1472,7 @@ def get_time_of_day_lines() -> List[str]:
 
 BOREDOM_ACTIONS = [
 
-    "stare",
+    "stare_spot",
 
     "trip",
 
@@ -2264,13 +2264,14 @@ class GremlinBrain:
 
         """Sample the dominant colour of the root window and react."""
 
+        # ImageMagick's `import` is the only sampler we have; if it's missing,
+        # skip rather than spawn a subprocess that's guaranteed to fail/time out
+        # on the Qt main thread.
+        if not shutil.which("import"):
+
+            return
+
         try:
-
-            result = subprocess.run(
-
-                ["xdotool", "getactivewindow"], capture_output=True, timeout=1
-
-            )
 
             r2 = subprocess.run(
 
@@ -2323,8 +2324,6 @@ class GremlinBrain:
                         key = "default"
 
                     lines = WALLPAPER_COLOR_LINES.get(key, WALLPAPER_COLOR_LINES["default"])
-
-                    QTimer_delay = 8000
 
                     self._emit(GremlinEvent(kind="dialogue",
 

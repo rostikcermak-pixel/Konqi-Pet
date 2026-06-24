@@ -398,11 +398,19 @@ class CPUMonitor(QThread):
     cpu_level = pyqtSignal(float)
     def __init__(self, interval=5.0): super().__init__(); self._interval=interval; self._running=True
     def run(self):
+        if _PSUTIL:
+            try: psutil.cpu_percent(interval=None)  # prime the baseline reading
+            except Exception: pass
+        slept = 0.0
         while self._running:
+            self.msleep(200)                      # short sleeps keep stop() responsive
+            slept += 0.2
+            if slept < self._interval:
+                continue
+            slept = 0.0
             if _PSUTIL:
-                try: self.cpu_level.emit(float(psutil.cpu_percent(interval=self._interval)))
+                try: self.cpu_level.emit(float(psutil.cpu_percent(interval=None)))
                 except Exception: pass
-            else: self.msleep(int(self._interval * 1000))
     def stop(self): self._running = False
 
                                                                              
@@ -939,11 +947,12 @@ class KonqiWindow(QWidget):
         self._timer.timeout.connect(self._tick)
         self._timer.start()
 
-        if self._chaos_mode:
-            self._gremlin_timer = QTimer(self)
-            self._gremlin_timer.setInterval(4000)
-            self._gremlin_timer.timeout.connect(self._gremlin_tick)
-            self._gremlin_timer.start()
+        # Always run the gremlin timer; _gremlin_tick early-returns when chaos
+        # is off, so toggling Chaos Mode on later takes effect without respawn.
+        self._gremlin_timer = QTimer(self)
+        self._gremlin_timer.setInterval(4000)
+        self._gremlin_timer.timeout.connect(self._gremlin_tick)
+        self._gremlin_timer.start()
 
     @pyqtSlot()
     def _tick(self):
@@ -989,9 +998,10 @@ class KonqiWindow(QWidget):
             c = QCursor.pos(); mouse_pos = (c.x(), c.y())
         except Exception: pass
         self._gremlin.tick(delta_seconds=dt, mouse_pos=mouse_pos)
-                                          
+        # Reuse the window title the brain already fetched this tick instead of
+        # spawning a second xdotool/xprop subprocess on the main thread.
         try:
-            win = __import__('chaos_gremlin').get_focused_window_name() or ''
+            win = self._gremlin._last_window or ''
             if any(k in win for k in ['chaos_gremlin','main.py','sprite_loader','konqi-shimeji'])\
                     and not getattr(self,'_src_reacted',False):
                 self._src_reacted = True
@@ -1777,6 +1787,8 @@ class KonqiApp(QApplication):
         self._loading_label = None
         self._available_update: Optional[tuple] = None
         self._update_thread: Optional[UpdateCheckThread] = None
+        self._manual_check = False           # True when the user clicked "Check for Updates"
+        self._update_found_this_run = False
         self._show_loading()
         self._loader = SpriteLoaderThread(force=False)
         self._loader.done.connect(self._on_sprites_loaded)
@@ -1828,6 +1840,7 @@ class KonqiApp(QApplication):
     def _kick_update_check(self):
         if getattr(self, "_update_thread", None) is not None and self._update_thread.isRunning():
             return
+        self._update_found_this_run = False
         self._update_thread = UpdateCheckThread(__version__)
         self._update_thread.found.connect(self._on_update_found)
         self._update_thread.finished.connect(self._on_update_check_done)
@@ -1836,8 +1849,16 @@ class KonqiApp(QApplication):
     def _on_update_check_done(self):
         self._cfg["last_update_check"] = int(time.time())
         save_config(self._cfg)
+        # Give the user feedback on a manual check so it never looks like a no-op.
+        if self._manual_check and not self._update_found_this_run:
+            konqi = self._konqis[0] if self._konqis else None
+            if konqi:
+                konqi._show_bubble(f"You're up to date (v{__version__}). Obviously.",
+                                   duration_ms=4000)
+        self._manual_check = False
 
     def _on_update_found(self, tag: str, url: str):
+        self._update_found_this_run = True
         self._available_update = (tag, url)
         if self._konqis:
             self._konqis[0]._show_bubble(
@@ -1848,6 +1869,7 @@ class KonqiApp(QApplication):
         konqi = self._konqis[0] if self._konqis else None
         if konqi:
             konqi._show_bubble("Checking for updates…", duration_ms=2500)
+        self._manual_check = True
         self._cfg["last_update_check"] = 0
         self._kick_update_check()
 
@@ -1891,7 +1913,7 @@ class KonqiApp(QApplication):
         from chaos_gremlin import TWIN_LINES_A, TWIN_LINES_B
                                     
         def argue():
-            if caller.is_visible() if hasattr(caller,'is_visible') else True:
+            if caller in self._konqis:
                 caller._show_bubble(random.choice(TWIN_LINES_A))
             QTimer.singleShot(1800, lambda: twin.show_dialogue(random.choice(TWIN_LINES_B)) if twin in self._konqis else None)
             QTimer.singleShot(3600, lambda: caller._show_bubble(random.choice(TWIN_LINES_A)) if caller in self._konqis else None)
@@ -2125,7 +2147,9 @@ class KonqiApp(QApplication):
                 self._notif_proc.terminate()
                 self._notif_proc = None
         except Exception: pass
-        if self._cpu_monitor: self._cpu_monitor.stop()
+        if self._cpu_monitor:
+            self._cpu_monitor.stop()
+            self._cpu_monitor.wait(500)
         for k in list(self._konqis): k.close_konqi()
         self._konqis.clear()
         if self._tray: self._tray.hide()

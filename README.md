@@ -1,17 +1,28 @@
 <div align="center">
 
-# Konqi Pet 🐉
+# 🐉 Konqi Pet
 
-**A chaotic desktop pet for Linux - using KDE's own mascot**
+### A chaotic desktop pet for Linux — starring KDE's own mascot
 
 *He walks. He climbs. He judges you. He has opinions about your tab count.*
 
+<br>
+
 ![linux-kde](assets/linux-kde.gif)
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-purple.svg)](LICENSE)
-![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)
-![PyQt6](https://img.shields.io/badge/PyQt6-supported-green.svg)
-![Platform](https://img.shields.io/badge/Platform-Linux%20X11%2FXWayland-orange.svg)
+<br>
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-8A2BE2.svg?style=for-the-badge)](LICENSE)
+&nbsp;
+![Python](https://img.shields.io/badge/Python-3.10+-3776AB.svg?style=for-the-badge&logo=python&logoColor=white)
+&nbsp;
+![PyQt](https://img.shields.io/badge/PyQt-6%20%2F%205-41CD52.svg?style=for-the-badge&logo=qt&logoColor=white)
+&nbsp;
+![Platform](https://img.shields.io/badge/Linux-X11%20%2F%20XWayland-FCC624.svg?style=for-the-badge&logo=linux&logoColor=black)
+
+<br>
+
+[**Install**](#-install) · [**What he does**](#-what-he-does) · [**Usage**](#-usage) · [**Config**](#-config) · [**Custom sprites**](#-custom-sprites)
 
 </div>
 
@@ -19,7 +30,7 @@
 
 Konqi is KDE's official mascot. He lives on your desktop now. He was not asked.
 
-He walks around your screen, climbs the edges, falls off things, and falls asleep when you're boring. Every few seconds something random happens - he teleports, trips over nothing, summons a second copy of himself to argue with, or writes a bad poem about whatever you have open. He watches what apps you use and has escalating opinions the longer you stay in them.
+He walks around your screen, climbs the edges, falls off things, and falls asleep when you're boring. Every few seconds something random happens — he teleports, trips over nothing, summons a second copy of himself to argue with, or writes a bad poem about whatever you have open. He watches which apps you use and his opinions escalate the longer you stay in them.
 
 <div align="center">
 
@@ -29,42 +40,37 @@ He walks around your screen, climbs the edges, falls off things, and falls aslee
 
 ---
 
-## What he does
+## ✨ What he does
 
-- **Walks, climbs, falls, sleeps** - full physics with gravity, wall climbing, and bouncing
-- **Watches your apps** - reacts to 200+ specific window titles with unique dialogue
-- **Escalates** - two minutes open is a comment, two hours is a confrontation
-- **Chaos events** - teleport, spin, drift, shake, dive, trip, glitch, stare, scribble, summon twin
-- **Writes bad poems** about whatever you have open. They are not good.
-- **Plays tic-tac-toe** with you and gets smug about it
-- **Reacts to CPU, notifications, typing speed, wallpaper colour**
-- **Remembers between sessions** - comfort level builds over time, delete `~/.local/share/konqi-pet/gremlin_memory.json` to reset his opinions of you (they will re-form quickly)
+| | |
+|---|---|
+| 🚶 **Moves like he means it** | Full physics — gravity, wall-climbing, falling, and bouncing |
+| 👀 **Watches your apps** | Reacts to 200+ specific window titles with unique dialogue |
+| 📈 **Escalates** | Two minutes open is a comment. Two hours is a confrontation. |
+| 💥 **Causes chaos** | Teleport, spin, drift, shake, dive, trip, glitch, stare, scribble, summon twin |
+| ✍️ **Writes bad poems** | About whatever you have open. They are not good. |
+| 🎮 **Plays tic-tac-toe** | And gets smug about it (the AI is unbeatable) |
+| 🌡️ **Reacts to your system** | CPU load, notifications, typing speed, even your wallpaper colour |
+| 🧠 **Remembers you** | Comfort level builds across sessions — he greets you differently over time |
 
----
-
-## Sprites
-
-<div align="center">
-
-| Walking | Idle | Sleeping | Climbing |
-|:---:|:---:|:---:|:---:|
-| ![walk](assets/konqi_walk.png) | ![idle](assets/konqi_idle.png) | ![sleep](assets/konqi_sleep.png) | ![climb](assets/konqi_climb.png) |
-
-</div>
-
-All animations are generated automatically from these four source PNGs - no sprite sheets needed.
+> [!TIP]
+> To reset his opinion of you, delete `~/.local/share/konqi-pet/gremlin_memory.json`.
+> (They will re-form quickly.)
 
 ---
 
-## Install
+## 📦 Install
 
-**One line** (clones the repo, sets up a venv, adds him to your app menu):
+**One line** — clones the repo, sets up a venv, and adds him to your app menu:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/rostikcermak-pixel/Konqi-Pet/main/install.sh | bash
 ```
 
-**Manual:**
+<details>
+<summary><b>Manual install</b></summary>
+
+<br>
 
 ```bash
 git clone https://github.com/rostikcermak-pixel/Konqi-Pet
@@ -73,13 +79,26 @@ pip install PyQt6 Pillow psutil
 python3 main.py
 ```
 
-**Steam Deck / SteamOS:**
+</details>
+
+<details>
+<summary><b>Steam Deck / SteamOS</b></summary>
+
+<br>
+
 ```bash
 pip install --break-system-packages PyQt6 Pillow psutil
 python3 main.py
 ```
 
-**Flatpak** (build it yourself - see [`flatpak/README.md`](flatpak/README.md)):
+</details>
+
+<details>
+<summary><b>Flatpak (build it yourself)</b></summary>
+
+<br>
+
+See [`flatpak/README.md`](flatpak/README.md) for details.
 
 ```bash
 flatpak install -y flathub org.kde.Platform//6.8 org.kde.Sdk//6.8
@@ -88,11 +107,15 @@ flatpak-builder --user --install --force-clean build-dir \
 flatpak run io.github.rostikcermak_pixel.KonqiPet
 ```
 
-**Dependencies:** Python 3.10+, PyQt6 (or PyQt5), Pillow. `psutil` is optional but recommended. `xdotool` for app detection.
+</details>
+
+> [!NOTE]
+> **Dependencies:** Python 3.10+, PyQt6 (or PyQt5), Pillow.
+> `psutil` is optional but recommended (CPU/RAM reactions). `xdotool` enables app detection.
 
 ---
 
-## Usage
+## ⚡ Usage
 
 ```bash
 python3 main.py                  # normal mode
@@ -102,11 +125,25 @@ python3 main.py --quiet          # no speech bubbles
 python3 main.py --no-chaos       # just a normal walking dragon
 ```
 
-Right-click Konqi for the menu - speed, chaos settings, tic-tac-toe, tips, actions, autostart, and updates.
+**Right-click Konqi** for the full menu — speed, mode, chaos triggers, tic-tac-toe, tips, autostart, and updates.
 
 ---
 
-## Custom sprites
+## 🎨 Sprites
+
+<div align="center">
+
+| Walking | Idle | Sleeping | Climbing |
+|:---:|:---:|:---:|:---:|
+| ![walk](assets/konqi_walk.png) | ![idle](assets/konqi_idle.png) | ![sleep](assets/konqi_sleep.png) | ![climb](assets/konqi_climb.png) |
+
+</div>
+
+Every animation — walk, idle, sleep, climb, fall, stretch, wave, look-around — is **generated automatically** from these four source PNGs. No sprite sheets to draw.
+
+---
+
+## 🖌️ Custom sprites
 
 Drop any PNG into `assets/` and run:
 
@@ -115,23 +152,23 @@ python3 import_sprite.py your_sprite.png
 python3 main.py
 ```
 
-The project uses four sprites - replace any and restart, frames regenerate automatically:
+Replace any of the four source sprites and restart — frames regenerate automatically:
 
 | File | Used for |
 |---|---|
 | `assets/konqi_walk.png` | Walking |
-| `assets/konqi_idle.png` | Idle, pointing |
+| `assets/konqi_idle.png` | Idle, pointing, waving |
 | `assets/konqi_sleep.png` | Sleeping |
 | `assets/konqi_climb.png` | Climbing walls |
 
 ---
 
-## Config
+## ⚙️ Config
 
-`config.json` in the project root:
+User settings live in `~/.config/konqi-pet/config.json` (shipped defaults are in [`config.json`](config.json)):
 
 | Key | Default | What it does |
-|---|---|---|
+|---|:---:|---|
 | `behavior_mode` | `"calm"` | `"calm"` or `"hyper"` |
 | `chaos_mode` | `true` | Enables the whole gremlin brain |
 | `quiet_mode` | `false` | Suppresses speech bubbles |
@@ -142,15 +179,22 @@ The project uses four sprites - replace any and restart, frames regenerate autom
 
 ---
 
-## Notes
+## 📝 Notes
 
-Works on X11 and XWayland. On pure Wayland without XWayland, movement works but app detection (`xdotool`) won't. Tested on KDE, GNOME, and SteamOS.
-
-The PC tips are fake. Please do not defragment your SSD.
+- Works on **X11** and **XWayland**. On pure Wayland without XWayland, movement works but app detection (`xdotool`) won't.
+- Tested on **KDE**, **GNOME**, and **SteamOS**.
+- The "useless PC tips" are fake. Please do not defragment your SSD.
 
 ---
 
-## License
+<div align="center">
 
-Code: [MIT](LICENSE)  
-Konqi artwork: CC-BY-SA © KDE Contributors
+## 📜 License
+
+Code: [**MIT**](LICENSE) &nbsp;·&nbsp; Konqi artwork: **CC-BY-SA** © KDE Contributors
+
+<br>
+
+*Made for people who think their desktop is too calm.*
+
+</div>
