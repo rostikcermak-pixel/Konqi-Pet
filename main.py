@@ -869,7 +869,7 @@ class KonqiWindow(QWidget):
     spawn_requested = pyqtSignal()
     exit_requested  = pyqtSignal()
 
-    def __init__(self, animations, screen_rect, config, parent_app, gremlin):
+    def __init__(self, animations, screen_rect, config, parent_app, gremlin, pinned=False):
         super().__init__()
         self._app_ref       = parent_app
         self._cfg           = config
@@ -877,6 +877,7 @@ class KonqiWindow(QWidget):
         self._dialog_system = parent_app.dialog_system
         self._pet_state     = parent_app.pet_state
         self._screen  = screen_rect
+        self._pinned_screen = pinned   # True -> stay on the screen it was launched on
         self._gremlin = gremlin
 
         self._anim = AnimationController(
@@ -1711,8 +1712,41 @@ class KonqiWindow(QWidget):
             self._dragging = False; self._anim.end_drag()
             self._sound.release_drop()
             self._physics.state.on_ground = False
+            if self._pinned_screen:
+                self._enforce_pinned_screen()
+            else:
+                self._maybe_rebind_screen()
             if self._chaos_mode and random.random() < 0.45:
                 self._show_bubble(random.choice(__import__("chaos_gremlin").RELEASE_LINES))
+
+    def _maybe_rebind_screen(self) -> None:
+        """Move the pet's 'home' screen to whichever monitor it now sits on,
+        so it can be dragged to and live on any screen by default."""
+        app = self._app_ref
+        center = QPoint(self.x() + self.width() // 2,
+                        self.y() + self.height() // 2)
+        try:
+            screen = app.screenAt(center)
+        except Exception:
+            screen = None
+        if screen is None:
+            return
+        new_rect = get_screen_rect_qt(screen)
+        cur = self._screen
+        if (new_rect.x, new_rect.y, new_rect.w, new_rect.h) != \
+           (cur.x, cur.y, cur.w, cur.h):
+            self._screen = new_rect
+            self._physics.set_screen_rect(new_rect)
+            log.info("Konqi moved to screen %s", screen.name())
+
+    def _enforce_pinned_screen(self) -> None:
+        """Snap the pet back inside its assigned screen when it is pinned."""
+        s = self._screen
+        x = max(s.x, min(self._physics.state.x, s.right - self.width()))
+        y = max(s.y, min(self._physics.state.y, s.bottom - self.height()))
+        self._physics.teleport(x, y)
+        self._physics.state.on_ground = False
+        self.move(int(x), int(y))
 
     def mouseDoubleClickEvent(self, event):
         self._anim.set_state(State.FLY, force=True)
@@ -1763,12 +1797,13 @@ class KonqiWindow(QWidget):
           
                                                                              
 class KonqiApp(QApplication):
-    def __init__(self, argv, config):
+    def __init__(self, argv, config, screen_spec=None):
         super().__init__(argv)
         self.setApplicationName("Konqi Shimeji")
         self.setApplicationDisplayName("Konqi - Chaos Gremlin Edition")
         self.setQuitOnLastWindowClosed(False)
         self._cfg = config
+        self._target_screen = self._resolve_screen(screen_spec)
         self._konqis: List[KonqiWindow] = []
         self._anims = None
         self._gremlin = GremlinBrain()
@@ -1795,6 +1830,32 @@ class KonqiApp(QApplication):
         if config.get('chaos_mode', True):
             self.start_notification_watcher()
 
+    def _resolve_screen(self, spec):
+        """Resolve a screen specifier (connector name like 'HDMI-A-2', or a
+        numeric index) to a QScreen. Returns None when unset or not found."""
+        if spec is None:
+            return None
+        spec = str(spec).strip()
+        if not spec:
+            return None
+        screens = self.screens()
+        if spec.isdigit():
+            idx = int(spec)
+            if 0 <= idx < len(screens):
+                log.info("Target screen #%d -> %s", idx, screens[idx].name())
+                return screens[idx]
+        for sc in screens:
+            if sc.name().lower() == spec.lower():
+                log.info("Target screen matched: %s", sc.name())
+                return sc
+        for sc in screens:                       # tolerant partial match
+            if spec.lower() in sc.name().lower():
+                log.info("Target screen partially matched '%s' -> %s", spec, sc.name())
+                return sc
+        log.warning("Requested screen '%s' not found; available: %s",
+                    spec, [s.name() for s in screens])
+        return None
+
     def _show_loading(self):
         w = QWidget()
         w.setWindowTitle("Konqi Shimeji")
@@ -1807,7 +1868,8 @@ class KonqiApp(QApplication):
         lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lbl.setStyleSheet("font-size:13px;padding:20px;color:#FF6B6B;")
         layout.addWidget(lbl); w.resize(420, 130)
-        center = QApplication.primaryScreen().geometry().center()
+        splash_screen = self._target_screen or QApplication.primaryScreen()
+        center = splash_screen.geometry().center()
         w.move(center.x()-210, center.y()-65); w.show()
         self._loading_label = w
 
@@ -1873,10 +1935,17 @@ class KonqiApp(QApplication):
     def spawn_konqi(self):
         if self._anims is None or len(self._konqis) >= 10: return
         screens = self.screens()
-        screen = (random.choice(screens) if self._cfg.get("multi_monitor") and len(screens)>1
-                  else self.primaryScreen())
+        pinned = False
+        if self._target_screen is not None:
+            screen = self._target_screen          # --screen / QT_SCREEN: launch & stay here
+            pinned = True
+        elif self._cfg.get("multi_monitor") and len(screens) > 1:
+            screen = random.choice(screens)
+        else:
+            screen = self.primaryScreen()
         screen_rect = get_screen_rect_qt(screen)
-        k = KonqiWindow(self._anims, screen_rect, dict(self._cfg), self, self._gremlin)
+        k = KonqiWindow(self._anims, screen_rect, dict(self._cfg), self,
+                        self._gremlin, pinned=pinned)
         self._konqis.append(k)
         log.info("Spawned Konqi #%d", len(self._konqis))
         if self._cfg.get("chaos_mode", True):
@@ -2139,6 +2208,11 @@ def main():
     parser.add_argument("--reload-sprites", action="store_true")
     parser.add_argument("--quiet",          action="store_true", help="Disable dialogue bubbles")
     parser.add_argument("--no-chaos",       action="store_true", help="Disable chaos gremlin brain")
+    parser.add_argument("--screen", "--display", dest="screen", default=None,
+                        metavar="NAME|INDEX",
+                        help="Launch and keep Konqi on the given screen "
+                             "(connector name like HDMI-A-2, or a 0-based index). "
+                             "Also honours the QT_SCREEN environment variable.")
     args = parser.parse_args()
 
     if args.debug: logging.getLogger().setLevel(logging.DEBUG)
@@ -2156,7 +2230,9 @@ def main():
         QApplication.setHighDpiScaleFactorRoundingPolicy(
             Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
 
-    app = KonqiApp(sys.argv, cfg)
+    screen_spec = args.screen or os.environ.get("QT_SCREEN")
+
+    app = KonqiApp(sys.argv, cfg, screen_spec=screen_spec)
 
     if args.reload_sprites:
         app._loader.quit(); app._loader.wait()
