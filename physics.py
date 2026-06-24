@@ -108,6 +108,12 @@ class PhysicsEngine:
         """Set the fixed canvas width used for climb frames."""
         self._climb_canvas_w = w
 
+    def set_screen_rect(self, screen_rect: Rect) -> None:
+        """Rebind the engine to a new screen (e.g. after the pet is dragged
+        onto a different monitor). Floor is recomputed from the new bounds."""
+        self._screen  = screen_rect
+        self._floor_y = screen_rect.bottom
+
     def set_behavior_mode(self, mode: str) -> None:
         self.state.behavior_mode = mode
 

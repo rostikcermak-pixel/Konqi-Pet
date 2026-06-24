@@ -100,9 +100,26 @@ python3 main.py --hyper          # faster, more chaotic
 python3 main.py --count 3        # spawn 3 at once
 python3 main.py --quiet          # no speech bubbles
 python3 main.py --no-chaos       # just a normal walking dragon
+python3 main.py --screen HDMI-A-2  # launch & stay on a specific monitor
 ```
 
 Right-click Konqi for the menu - speed, chaos settings, tic-tac-toe, tips, actions, autostart, and updates.
+
+### Multi-monitor
+
+Konqi can be **dragged onto any screen** and will happily live there - it
+adopts whichever monitor you drop it on as its new home.
+
+To launch (and keep) Konqi on a specific screen, use either:
+
+```bash
+python3 main.py --screen HDMI-A-2   # connector name (also: --display)
+python3 main.py --screen 1          # 0-based screen index
+QT_SCREEN=HDMI-A-2 python3 main.py  # environment variable
+```
+
+Use `xrandr --listmonitors` (X11) or `kscreen-doctor -o` (KDE/Wayland) to find
+your connector names.
 
 ---
 
