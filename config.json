@@ -10,5 +10,8 @@
   "always_on_top":     true,
   "multi_monitor":     false,
   "sprite_height_px":  96,
-  "debug_mode":        false
+  "debug_mode":        false,
+  "clip_capture":      true,
+  "clip_seconds":      3.0,
+  "clip_fps":          12
 }

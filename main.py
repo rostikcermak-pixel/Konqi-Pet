@@ -51,6 +51,7 @@ from sound_engine  import SoundEngine
 from dialog_system import DialogSystem
 from pet_state     import PetState, PetStateMachine
 from updater       import check_for_update, apply_update, REPO as UPDATE_REPO
+from clip_recorder import ClipRecorder, capture_supported, output_dir as clips_dir
 
 __version__ = "0.1.0"
 
@@ -86,6 +87,7 @@ def load_config() -> dict:
         cpu_reactions=True, cpu_high_threshold=85, sound_effects=False,
         always_on_top=True, multi_monitor=False, sprite_height_px=96,
         debug_mode=False, chaos_mode=True, quiet_mode=False,
+        clip_capture=True, clip_seconds=3.0, clip_fps=12,
     )
     # Layer the configs: hardcoded -> shipped/legacy file -> user file.
     for path in (BUNDLED_CONFIG, CONFIG_PATH):
@@ -873,6 +875,15 @@ class TicTacToeWidget(QWidget):
         self.deleteLater()
 
 
+CLIP_COOLDOWN_SEC = 180  # never auto-record more often than this
+
+# Chaos actions that are worth putting on the internet.
+CLIP_WORTHY_ACTIONS = {
+    "teleport", "summon_twin", "trip", "freeze_glitch",
+    "scribble", "dive", "minimize_window", "spin",
+}
+
+
 class KonqiWindow(QWidget):
     spawn_requested = pyqtSignal()
     exit_requested  = pyqtSignal()
@@ -1123,7 +1134,10 @@ class KonqiWindow(QWidget):
             "minimize_window": self._do_minimize_window,
         }
         fn = dispatch.get(action)
-        if fn: fn()
+        if not fn: return
+        fn()
+        if action in CLIP_WORTHY_ACTIONS and random.random() < 0.35:
+            self._app_ref.record_moment(self, action)
 
                                                                               
     def _do_teleport(self):
@@ -1800,6 +1814,13 @@ class KonqiApp(QApplication):
             self._cpu_monitor.start()
         self._sound_engine = SoundEngine(enabled=config.get('sound_effects', False))
         self._tray = None; self._setup_tray()
+        self._clip_recorder = ClipRecorder(self,
+                                           fps=config.get("clip_fps", 12),
+                                           seconds=config.get("clip_seconds", 3.0))
+        self._clip_recorder.saved.connect(self._on_clip_saved)
+        self._clip_recorder.failed.connect(self._on_clip_failed)
+        self._last_clip_time = 0.0
+        self._clip_notice_shown = False
                                             
         self._key_count: int = 0
         self._key_timer: float = time.time()
@@ -1979,6 +2000,9 @@ class KonqiApp(QApplication):
         menu.addSeparator()
 
         act(menu, "🎮 Tic-Tac-Toe", lambda: konqi.start_tictactoe())
+        act(menu, "🎬 Record a Moment",
+            lambda: self.record_moment(konqi, "clip", manual=True))
+        act(menu, "📂 Konqi Moments…", self._open_clips_folder)
 
         mode_menu = menu.addMenu("⚡ Mode"); mode_menu.setStyleSheet(STYLE)
         for mn, ml in [("calm","Calm"),("hyper","Hyper")]:
@@ -2013,6 +2037,7 @@ class KonqiApp(QApplication):
             ("Chaos Mode",   "chaos_mode",    True,  self._toggle_chaos),
             ("Sounds",       "sound_effects", False, self._toggle_sound),
             ("Quiet Bubbles","quiet_mode",    False, self._toggle_quiet),
+            ("Auto-Record Clips","clip_capture", True, self._toggle_clip_capture),
         ]:
             a = QAction(label, settings_menu); a.setCheckable(True)
             a.setChecked(self._cfg.get(key, default))
@@ -2052,6 +2077,70 @@ class KonqiApp(QApplication):
     def _toggle_quiet(self):
         self._cfg["quiet_mode"] = not self._cfg.get("quiet_mode", False); save_config(self._cfg)
         for k in self._konqis: k._quiet_mode = self._cfg["quiet_mode"]
+
+    def record_moment(self, konqi, label: str = "moment", manual: bool = False) -> None:
+        """Record a short GIF of Konqi. Auto-recordings are rate limited."""
+        if not self._cfg.get("clip_capture", True) and not manual:
+            return
+        now = time.time()
+        if not manual and now - self._last_clip_time < CLIP_COOLDOWN_SEC:
+            return
+        if self._clip_recorder.busy:
+            if manual: konqi.show_dialogue("Already filming. Do something interesting.")
+            return
+
+        def rect_fn():
+            return (konqi.x(), konqi.y(), konqi.width(), konqi.height())
+
+        if self._clip_recorder.start(rect_fn, label):
+            self._last_clip_time = now
+            if manual:
+                konqi.show_dialogue(random.choice([
+                    "Rolling. Try to look competent.",
+                    "Filming. This had better be good.",
+                    "Recording. Posterity is watching.",
+                ]))
+
+    @pyqtSlot(str)
+    def _on_clip_saved(self, path: str) -> None:
+        try:
+            self.clipboard().setText(path)
+        except Exception: pass
+        if self._konqis:
+            random.choice(self._konqis).show_dialogue(random.choice([
+                "That's going on the internet.",
+                "Saved. Path is in your clipboard. Post it.",
+                "Recorded. Somebody should see this.",
+                "Clip saved. Tag it #KonqiPet or it never happened.",
+            ]))
+        self._notify("Konqi saved a moment",
+                     f"{Path(path).name}\nPath copied to clipboard - post it with #KonqiPet")
+
+    @pyqtSlot(str)
+    def _on_clip_failed(self, reason: str) -> None:
+        log.info("Clip recording unavailable: %s", reason)
+        if self._konqis and not self._clip_notice_shown:
+            self._clip_notice_shown = True
+            self._konqis[0].show_dialogue(reason)
+
+    def _open_clips_folder(self) -> None:
+        d = clips_dir()
+        try:
+            d.mkdir(parents=True, exist_ok=True)
+            subprocess.Popen(["xdg-open", str(d)],
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception as exc:
+            log.warning("Could not open %s: %s", d, exc)
+
+    def _toggle_clip_capture(self) -> None:
+        self._cfg["clip_capture"] = not self._cfg.get("clip_capture", True)
+        save_config(self._cfg)
+
+    def _notify(self, title: str, body: str) -> None:
+        if self._tray and self._tray.supportsMessages():
+            self._tray.showMessage(title, body,
+                QSystemTrayIcon.MessageIcon.Information if _QT6 else QSystemTrayIcon.Information,
+                5000)
 
     def _force_tip(self, konqi):
         from chaos_gremlin import USELESS_TIPS; konqi.show_dialogue(random.choice(USELESS_TIPS))
@@ -2146,6 +2235,9 @@ class KonqiApp(QApplication):
             if hasattr(self, '_notif_proc') and self._notif_proc:
                 self._notif_proc.terminate()
                 self._notif_proc = None
+        except Exception: pass
+        try:
+            self._clip_recorder.stop()
         except Exception: pass
         if self._cpu_monitor:
             self._cpu_monitor.stop()

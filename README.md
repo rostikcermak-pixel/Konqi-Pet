@@ -52,10 +52,42 @@ He walks around your screen, climbs the edges, falls off things, and falls aslee
 | 🎮 **Plays tic-tac-toe** | And gets smug about it (the AI is unbeatable) |
 | 🌡️ **Reacts to your system** | CPU load, notifications, typing speed, even your wallpaper colour |
 | 🧠 **Remembers you** | Comfort level builds across sessions — he greets you differently over time |
+| 🎬 **Films himself** | Auto-records his best chaos as a shareable GIF and copies the path to your clipboard |
 
 > [!TIP]
 > To reset his opinion of you, delete `~/.local/share/konqi-pet/gremlin_memory.json`.
 > (They will re-form quickly.)
+
+---
+
+## 🎬 Konqi Moments
+
+Konqi records himself. When he does something worth seeing - a teleport, a trip,
+a summoned twin - there's a chance he grabs a 3-second GIF of it and drops it in
+`~/Pictures/Konqi Moments/`. The file path lands in your clipboard, so posting it
+is one paste away.
+
+- Right-click him -> **🎬 Record a Moment** to film on demand.
+- Right-click -> **📂 Konqi Moments...** to open the folder.
+- Right-click -> **⚙ Settings -> Auto-Record Clips** to turn the automatic ones off.
+
+Clips are ~480x360 and land around 100-250 KB, which is small enough for
+Mastodon, Discord and Reddit without re-encoding.
+
+> [!NOTE]
+> Recording uses X11 screen capture, same as window climbing. On a pure Wayland
+> session (no XWayland) Konqi will tell you he can't film.
+
+Tune it in `config.json`:
+
+```json
+"clip_capture": true,
+"clip_seconds": 3.0,
+"clip_fps": 12
+```
+
+If he catches himself doing something genuinely stupid, post it with
+**#KonqiPet**. He would want the attention.
 
 ---
 
