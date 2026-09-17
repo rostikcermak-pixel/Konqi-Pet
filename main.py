@@ -526,7 +526,13 @@ class InteractiveBubble(QWidget):
         flags = (Qt.WindowType.FramelessWindowHint |
                  Qt.WindowType.WindowStaysOnTopHint |
                  Qt.WindowType.Tool)
-        if _QT6:
+        # X11 override-redirect (bypassing the WM) makes this float free of any
+        # window manager, but Wayland compositors (Hyprland included) don't
+        # deliver pointer input to unmanaged/override-redirect XWayland windows
+        # at all - clicks on these buttons would silently do nothing. Stay a
+        # normal managed window there instead; see the note by KonqiWindow's
+        # window-flags for the Hyprland-side floating rule this needs.
+        if _QT6 and not _UNDER_WAYLAND_COMPOSITOR:
             flags |= Qt.WindowType.X11BypassWindowManagerHint
         self.setWindowFlags(flags)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
@@ -735,7 +741,10 @@ class TicTacToeWidget(QWidget):
         flags = (Qt.WindowType.FramelessWindowHint |
                  Qt.WindowType.WindowStaysOnTopHint |
                  Qt.WindowType.Tool)
-        if _QT6:
+        # See the matching note in InteractiveBubble/KonqiWindow: skip the
+        # override-redirect bypass under a Wayland compositor, since it
+        # blocks pointer input (the board wouldn't be clickable at all).
+        if _QT6 and not _UNDER_WAYLAND_COMPOSITOR:
             flags |= Qt.WindowType.X11BypassWindowManagerHint
         self.setWindowFlags(flags)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
@@ -940,7 +949,16 @@ class KonqiWindow(QWidget):
 
         flags = (Qt.WindowType.FramelessWindowHint |
                  Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.Tool)
-        if _QT6: flags |= Qt.WindowType.X11BypassWindowManagerHint
+        # X11 override-redirect (X11BypassWindowManagerHint) makes the window
+        # float free of any window manager - but Wayland compositors (Hyprland
+        # included) don't route pointer input to unmanaged/override-redirect
+        # XWayland windows at all, so Konqi would render fine but never
+        # receive clicks or drags. Stay a normal managed window under
+        # Wayland instead, which Hyprland does deliver input to; it needs a
+        # floating window rule so it isn't tiled into the grid, e.g. in
+        # hyprland.conf: windowrulev2 = float,class:^(konqi-pet)$
+        if _QT6 and not _UNDER_WAYLAND_COMPOSITOR:
+            flags |= Qt.WindowType.X11BypassWindowManagerHint
         self.setWindowFlags(flags)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
@@ -1807,6 +1825,10 @@ class KonqiApp(QApplication):
         super().__init__(argv)
         self.setApplicationName("Konqi Shimeji")
         self.setApplicationDisplayName("Konqi - Chaos Gremlin Edition")
+        # Gives windows a stable WM_CLASS ("konqi-pet") on X11/XWayland so a
+        # compositor's window rules (e.g. Hyprland's windowrulev2) can target
+        # them reliably, regardless of how the app was invoked.
+        self.setDesktopFileName("konqi-pet")
         self.setQuitOnLastWindowClosed(False)
         self._cfg = config
         self._konqis: List[KonqiWindow] = []
