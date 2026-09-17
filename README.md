@@ -111,7 +111,7 @@ flatpak run io.github.rostikcermak_pixel.KonqiPet
 
 > [!NOTE]
 > **Dependencies:** Python 3.10+, PyQt6 (or PyQt5), Pillow.
-> `psutil` is optional but recommended (CPU/RAM reactions). `xdotool` enables app detection.
+> `psutil` is optional but recommended (CPU/RAM reactions). `xdotool` enables app detection on X11/XWayland desktops; on Hyprland, `hyprctl` (bundled with Hyprland) is used instead.
 
 ---
 
@@ -181,8 +181,8 @@ User settings live in `~/.config/konqi-pet/config.json` (shipped defaults are in
 
 ## 📝 Notes
 
-- Works on **X11** and **XWayland**. On pure Wayland without XWayland, movement works but app detection (`xdotool`) won't.
-- Tested on **KDE**, **GNOME**, and **SteamOS**.
+- Works on **X11**, **XWayland**, and **Hyprland** (via `hyprctl`) — app detection and window-sitting/climbing work natively on all three. Other pure-Wayland compositors without XWayland only get movement, since app detection there relies on `xdotool`.
+- Tested on **KDE**, **GNOME**, **Hyprland**, and **SteamOS**.
 - The "useless PC tips" are fake. Please do not defragment your SSD.
 
 ---

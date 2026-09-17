@@ -11,6 +11,16 @@ import argparse, json, logging, math, os, random, select, subprocess, sys, time
 from pathlib import Path
 from typing import Dict, List, Optional
 
+# Konqi's windows (pet, bubbles, tic-tac-toe, scribbles) rely on X11
+# override-redirect semantics to float free of any window manager. Qt's
+# native Wayland backend has no equivalent, so a compositor tiles them like
+# ordinary windows instead. Force XWayland/xcb - overriding QT_QPA_PLATFORM
+# even when it's already set to "wayland", since compositors like Hyprland
+# commonly export that globally.
+_UNDER_WAYLAND_COMPOSITOR = sys.platform.startswith("linux") and "WAYLAND_DISPLAY" in os.environ
+if _UNDER_WAYLAND_COMPOSITOR:
+    os.environ["QT_QPA_PLATFORM"] = "xcb"
+
 try:
     from PyQt6.QtCore    import Qt, QTimer, QPoint, QSize, pyqtSignal, QThread, pyqtSlot
     from PyQt6.QtGui     import (QPixmap, QImage, QColor, QBitmap, QPainter,
@@ -516,7 +526,13 @@ class InteractiveBubble(QWidget):
         flags = (Qt.WindowType.FramelessWindowHint |
                  Qt.WindowType.WindowStaysOnTopHint |
                  Qt.WindowType.Tool)
-        if _QT6:
+        # X11 override-redirect (bypassing the WM) makes this float free of any
+        # window manager, but Wayland compositors (Hyprland included) don't
+        # deliver pointer input to unmanaged/override-redirect XWayland windows
+        # at all - clicks on these buttons would silently do nothing. Stay a
+        # normal managed window there instead; see the note by KonqiWindow's
+        # window-flags for the Hyprland-side floating rule this needs.
+        if _QT6 and not _UNDER_WAYLAND_COMPOSITOR:
             flags |= Qt.WindowType.X11BypassWindowManagerHint
         self.setWindowFlags(flags)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
@@ -725,7 +741,10 @@ class TicTacToeWidget(QWidget):
         flags = (Qt.WindowType.FramelessWindowHint |
                  Qt.WindowType.WindowStaysOnTopHint |
                  Qt.WindowType.Tool)
-        if _QT6:
+        # See the matching note in InteractiveBubble/KonqiWindow: skip the
+        # override-redirect bypass under a Wayland compositor, since it
+        # blocks pointer input (the board wouldn't be clickable at all).
+        if _QT6 and not _UNDER_WAYLAND_COMPOSITOR:
             flags |= Qt.WindowType.X11BypassWindowManagerHint
         self.setWindowFlags(flags)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
@@ -930,7 +949,16 @@ class KonqiWindow(QWidget):
 
         flags = (Qt.WindowType.FramelessWindowHint |
                  Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.Tool)
-        if _QT6: flags |= Qt.WindowType.X11BypassWindowManagerHint
+        # X11 override-redirect (X11BypassWindowManagerHint) makes the window
+        # float free of any window manager - but Wayland compositors (Hyprland
+        # included) don't route pointer input to unmanaged/override-redirect
+        # XWayland windows at all, so Konqi would render fine but never
+        # receive clicks or drags. Stay a normal managed window under
+        # Wayland instead, which Hyprland does deliver input to; it needs a
+        # floating window rule so it isn't tiled into the grid, e.g. in
+        # hyprland.conf: windowrulev2 = float,class:^(konqi-pet)$
+        if _QT6 and not _UNDER_WAYLAND_COMPOSITOR:
+            flags |= Qt.WindowType.X11BypassWindowManagerHint
         self.setWindowFlags(flags)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
@@ -977,6 +1005,17 @@ class KonqiWindow(QWidget):
             self._update_sit()
                                                                       
                                                                              
+        self._reposition_overlays()
+
+    def _reposition_overlays(self):
+        """Track every bubble/dialog onto Konqi's current position.
+
+        Called from the tick timer, but also directly from mouseMoveEvent:
+        a fast flood of drag motion events can otherwise starve the QTimer
+        for the whole drag (each move is now a real WM round-trip, not an
+        instant override-redirect move), leaving bubbles frozen wherever
+        Konqi was when the drag started instead of following him.
+        """
         cur_state = self._anim.state
         kx, ky, kw, kh = self.x(), self.y(), self.width(), self.height()
         live = []
@@ -1326,12 +1365,6 @@ class KonqiWindow(QWidget):
 
     def _try_sit_on_window(self):
         """Try to park Konqi on top of a visible window."""
-        try:
-            import subprocess as sp
-            result = sp.run(["xdotool", "search", "--onlyvisible", "--name", ""],
-                           capture_output=True, text=True, timeout=1)
-        except Exception:
-            return
         if not self._physics._windows:
             return
         candidates = [w for w in self._physics._windows
@@ -1527,14 +1560,29 @@ class KonqiWindow(QWidget):
     def _do_minimize_window(self):
         """Minimise the currently active window as a prank."""
         minimized = False
-        try:
-            r = subprocess.run(
-                ["xdotool", "getactivewindow", "windowminimize"],
-                capture_output=True, timeout=1,
-            )
-            minimized = (r.returncode == 0)
-        except Exception:
-            pass
+        if os.environ.get("HYPRLAND_INSTANCE_SIGNATURE"):
+            try:
+                r = subprocess.run(["hyprctl", "-j", "activewindow"],
+                                    capture_output=True, text=True, timeout=1)
+                addr = json.loads(r.stdout).get("address") if r.returncode == 0 else None
+                if addr:
+                    r2 = subprocess.run(
+                        ["hyprctl", "dispatch", "movetoworkspacesilent",
+                         f"special:minimized,address:{addr}"],
+                        capture_output=True, timeout=1,
+                    )
+                    minimized = (r2.returncode == 0)
+            except Exception:
+                pass
+        if not minimized:
+            try:
+                r = subprocess.run(
+                    ["xdotool", "getactivewindow", "windowminimize"],
+                    capture_output=True, timeout=1,
+                )
+                minimized = (r.returncode == 0)
+            except Exception:
+                pass
         if not minimized:
             try:
                 r = subprocess.run(
@@ -1688,9 +1736,20 @@ class KonqiWindow(QWidget):
                 self._physics.set_climb_canvas_w(ccw)
             except Exception:
                 pass
-        try:
-            mask = make_mask_from_pixmap(pixmap); self.setMask(QRegion(mask))
-        except Exception: pass
+        # The X11 Shape-extension mask below is a non-compositing fallback
+        # (plain X11 WMs without a compositor can't render WA_TranslucentBackground
+        # at all otherwise). A Wayland compositor always composites, and
+        # reapplying a hard shape mask every frame through XWayland races the
+        # compositor's own alpha blending - producing a black fringe and
+        # ghosting between frames, and an input region that lags the visible
+        # sprite (so clicks/drags miss). Skip it there; translucency alone
+        # already renders correctly.
+        if not _UNDER_WAYLAND_COMPOSITOR:
+            try:
+                mask = make_mask_from_pixmap(pixmap); self.setMask(QRegion(mask))
+            except Exception: pass
+        elif not self.mask().isEmpty():
+            self.clearMask()
 
     def mousePressEvent(self, event):
         btn = event.button()
@@ -1714,6 +1773,11 @@ class KonqiWindow(QWidget):
             dx = new_pos.x() - self._physics.state.x
             dy = new_pos.y() - self._physics.state.y
             self._physics.apply_drag_move(dx, dy); self._update_sprite()
+            # Don't rely on the tick timer alone here: a fast flood of drag
+            # motion events can starve it for the whole drag (see the note
+            # on _reposition_overlays), leaving bubbles stuck wherever Konqi
+            # was when the drag started.
+            self._reposition_overlays()
 
     def mouseReleaseEvent(self, event):
         left_btn = Qt.MouseButton.LeftButton if _QT6 else Qt.LeftButton
@@ -1777,6 +1841,10 @@ class KonqiApp(QApplication):
         super().__init__(argv)
         self.setApplicationName("Konqi Shimeji")
         self.setApplicationDisplayName("Konqi - Chaos Gremlin Edition")
+        # Gives windows a stable WM_CLASS ("konqi-pet") on X11/XWayland so a
+        # compositor's window rules (e.g. Hyprland's windowrulev2) can target
+        # them reliably, regardless of how the app was invoked.
+        self.setDesktopFileName("konqi-pet")
         self.setQuitOnLastWindowClosed(False)
         self._cfg = config
         self._konqis: List[KonqiWindow] = []
@@ -2172,9 +2240,6 @@ def main():
     if args.count:    cfg["spawn_count"]   = max(1, args.count)
     if args.quiet:    cfg["quiet_mode"]    = True
     if args.no_chaos: cfg["chaos_mode"]    = False
-
-    if sys.platform.startswith("linux") and "WAYLAND_DISPLAY" in os.environ:
-        os.environ.setdefault("QT_QPA_PLATFORM", "xcb")
 
     if _QT6:
         QApplication.setHighDpiScaleFactorRoundingPolicy(
