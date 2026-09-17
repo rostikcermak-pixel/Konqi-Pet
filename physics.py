@@ -7,8 +7,11 @@ using the fixed climb canvas width so the sprite never drifts or clips.
 
 from __future__ import annotations
 
+import json
 import logging
+import os
 import random
+import subprocess
 from dataclasses import dataclass, field
 from typing import List, Optional, Tuple
 
@@ -20,9 +23,14 @@ try:
     _EWMH_AVAILABLE = True
     log.info("python-ewmh available - window climbing enabled")
 except Exception:
-    _ewmh = None                                    
+    _ewmh = None
     _EWMH_AVAILABLE = False
     log.info("python-ewmh not available - climbing screen edges only")
+
+# EWMH only sees X11/XWayland-managed windows, so on Hyprland (native
+# Wayland) it misses everything but XWayland clients. hyprctl reports
+# every window regardless of backend.
+_IS_HYPRLAND = bool(os.environ.get("HYPRLAND_INSTANCE_SIGNATURE"))
 
                                                                              
            
@@ -265,6 +273,9 @@ class PhysicsEngine:
             s.vx = -abs(s.vx) * BOUNCE_DAMPING
 
     def _refresh_windows(self) -> None:
+        if _IS_HYPRLAND:
+            self._refresh_windows_hyprland()
+            return
         if not _EWMH_AVAILABLE:
             return
         try:
@@ -285,6 +296,32 @@ class PhysicsEngine:
             self._windows = rects
         except Exception as exc:
             log.debug("Window refresh failed: %s", exc)
+            self._windows = []
+
+    def _refresh_windows_hyprland(self) -> None:
+        try:
+            result = subprocess.run(
+                ["hyprctl", "-j", "clients"],
+                capture_output=True, text=True, timeout=1,
+            )
+            if result.returncode != 0 or not result.stdout.strip():
+                self._windows = []
+                return
+            clients = json.loads(result.stdout)
+            rects: List[Rect] = []
+            for c in clients:
+                try:
+                    if c.get("hidden") or not c.get("mapped", True):
+                        continue
+                    x, y = c["at"]
+                    w, h = c["size"]
+                    if w > 10 and h > 10:
+                        rects.append(Rect(x, y, w, h))
+                except Exception:
+                    pass
+            self._windows = rects
+        except Exception as exc:
+            log.debug("hyprctl window refresh failed: %s", exc)
             self._windows = []
 
                                                                              

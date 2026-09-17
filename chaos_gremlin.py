@@ -42,7 +42,9 @@ log = logging.getLogger("konqi.chaos")
 
 
 def detect_desktop_environment() -> str:
-    """Return a lowercase DE identifier: kde, gnome, xfce, i3, sway, or unknown."""
+    """Return a lowercase DE identifier: kde, gnome, xfce, i3, sway, hyprland, or unknown."""
+    if os.environ.get("HYPRLAND_INSTANCE_SIGNATURE"):
+        return "hyprland"
     xdg = os.environ.get("XDG_CURRENT_DESKTOP", "").lower()
     if xdg:
         if "kde" in xdg or "plasma" in xdg:
@@ -51,6 +53,8 @@ def detect_desktop_environment() -> str:
             return "gnome"
         if "xfce" in xdg:
             return "xfce"
+        if "hyprland" in xdg:
+            return "hyprland"
         if "i3" in xdg:
             return "i3"
         if "sway" in xdg:
@@ -1853,6 +1857,22 @@ def get_focused_window_name() -> Optional[str]:
                 m = _re.search(r"'([^']*)'", r.stdout)
                 if m and m.group(1):
                     return m.group(1).lower()
+        except Exception:
+            pass
+
+    if _DETECTED_DE == "hyprland":
+        # xdotool/xprop only see XWayland clients under Hyprland; hyprctl
+        # sees the real focused window (native-Wayland or XWayland alike).
+        try:
+            r = subprocess.run(
+                ["hyprctl", "-j", "activewindow"],
+                capture_output=True, text=True, timeout=1,
+            )
+            if r.returncode == 0 and r.stdout.strip():
+                data = json.loads(r.stdout)
+                name = data.get("title") or data.get("class") or ""
+                if name:
+                    return name.lower()
         except Exception:
             pass
 

@@ -1326,12 +1326,6 @@ class KonqiWindow(QWidget):
 
     def _try_sit_on_window(self):
         """Try to park Konqi on top of a visible window."""
-        try:
-            import subprocess as sp
-            result = sp.run(["xdotool", "search", "--onlyvisible", "--name", ""],
-                           capture_output=True, text=True, timeout=1)
-        except Exception:
-            return
         if not self._physics._windows:
             return
         candidates = [w for w in self._physics._windows
@@ -1527,14 +1521,29 @@ class KonqiWindow(QWidget):
     def _do_minimize_window(self):
         """Minimise the currently active window as a prank."""
         minimized = False
-        try:
-            r = subprocess.run(
-                ["xdotool", "getactivewindow", "windowminimize"],
-                capture_output=True, timeout=1,
-            )
-            minimized = (r.returncode == 0)
-        except Exception:
-            pass
+        if os.environ.get("HYPRLAND_INSTANCE_SIGNATURE"):
+            try:
+                r = subprocess.run(["hyprctl", "-j", "activewindow"],
+                                    capture_output=True, text=True, timeout=1)
+                addr = json.loads(r.stdout).get("address") if r.returncode == 0 else None
+                if addr:
+                    r2 = subprocess.run(
+                        ["hyprctl", "dispatch", "movetoworkspacesilent",
+                         f"special:minimized,address:{addr}"],
+                        capture_output=True, timeout=1,
+                    )
+                    minimized = (r2.returncode == 0)
+            except Exception:
+                pass
+        if not minimized:
+            try:
+                r = subprocess.run(
+                    ["xdotool", "getactivewindow", "windowminimize"],
+                    capture_output=True, timeout=1,
+                )
+                minimized = (r.returncode == 0)
+            except Exception:
+                pass
         if not minimized:
             try:
                 r = subprocess.run(
