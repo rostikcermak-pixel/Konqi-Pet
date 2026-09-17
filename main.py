@@ -1005,6 +1005,17 @@ class KonqiWindow(QWidget):
             self._update_sit()
                                                                       
                                                                              
+        self._reposition_overlays()
+
+    def _reposition_overlays(self):
+        """Track every bubble/dialog onto Konqi's current position.
+
+        Called from the tick timer, but also directly from mouseMoveEvent:
+        a fast flood of drag motion events can otherwise starve the QTimer
+        for the whole drag (each move is now a real WM round-trip, not an
+        instant override-redirect move), leaving bubbles frozen wherever
+        Konqi was when the drag started instead of following him.
+        """
         cur_state = self._anim.state
         kx, ky, kw, kh = self.x(), self.y(), self.width(), self.height()
         live = []
@@ -1762,6 +1773,11 @@ class KonqiWindow(QWidget):
             dx = new_pos.x() - self._physics.state.x
             dy = new_pos.y() - self._physics.state.y
             self._physics.apply_drag_move(dx, dy); self._update_sprite()
+            # Don't rely on the tick timer alone here: a fast flood of drag
+            # motion events can starve it for the whole drag (see the note
+            # on _reposition_overlays), leaving bubbles stuck wherever Konqi
+            # was when the drag started.
+            self._reposition_overlays()
 
     def mouseReleaseEvent(self, event):
         left_btn = Qt.MouseButton.LeftButton if _QT6 else Qt.LeftButton
