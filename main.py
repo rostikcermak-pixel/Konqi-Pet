@@ -17,7 +17,8 @@ from typing import Dict, List, Optional
 # ordinary windows instead. Force XWayland/xcb - overriding QT_QPA_PLATFORM
 # even when it's already set to "wayland", since compositors like Hyprland
 # commonly export that globally.
-if sys.platform.startswith("linux") and "WAYLAND_DISPLAY" in os.environ:
+_UNDER_WAYLAND_COMPOSITOR = sys.platform.startswith("linux") and "WAYLAND_DISPLAY" in os.environ
+if _UNDER_WAYLAND_COMPOSITOR:
     os.environ["QT_QPA_PLATFORM"] = "xcb"
 
 try:
@@ -1706,9 +1707,20 @@ class KonqiWindow(QWidget):
                 self._physics.set_climb_canvas_w(ccw)
             except Exception:
                 pass
-        try:
-            mask = make_mask_from_pixmap(pixmap); self.setMask(QRegion(mask))
-        except Exception: pass
+        # The X11 Shape-extension mask below is a non-compositing fallback
+        # (plain X11 WMs without a compositor can't render WA_TranslucentBackground
+        # at all otherwise). A Wayland compositor always composites, and
+        # reapplying a hard shape mask every frame through XWayland races the
+        # compositor's own alpha blending - producing a black fringe and
+        # ghosting between frames, and an input region that lags the visible
+        # sprite (so clicks/drags miss). Skip it there; translucency alone
+        # already renders correctly.
+        if not _UNDER_WAYLAND_COMPOSITOR:
+            try:
+                mask = make_mask_from_pixmap(pixmap); self.setMask(QRegion(mask))
+            except Exception: pass
+        elif not self.mask().isEmpty():
+            self.clearMask()
 
     def mousePressEvent(self, event):
         btn = event.button()
