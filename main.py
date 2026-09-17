@@ -11,6 +11,15 @@ import argparse, json, logging, math, os, random, select, subprocess, sys, time
 from pathlib import Path
 from typing import Dict, List, Optional
 
+# Konqi's windows (pet, bubbles, tic-tac-toe, scribbles) rely on X11
+# override-redirect semantics to float free of any window manager. Qt's
+# native Wayland backend has no equivalent, so a compositor tiles them like
+# ordinary windows instead. Force XWayland/xcb - overriding QT_QPA_PLATFORM
+# even when it's already set to "wayland", since compositors like Hyprland
+# commonly export that globally.
+if sys.platform.startswith("linux") and "WAYLAND_DISPLAY" in os.environ:
+    os.environ["QT_QPA_PLATFORM"] = "xcb"
+
 try:
     from PyQt6.QtCore    import Qt, QTimer, QPoint, QSize, pyqtSignal, QThread, pyqtSlot
     from PyQt6.QtGui     import (QPixmap, QImage, QColor, QBitmap, QPainter,
@@ -2181,9 +2190,6 @@ def main():
     if args.count:    cfg["spawn_count"]   = max(1, args.count)
     if args.quiet:    cfg["quiet_mode"]    = True
     if args.no_chaos: cfg["chaos_mode"]    = False
-
-    if sys.platform.startswith("linux") and "WAYLAND_DISPLAY" in os.environ:
-        os.environ.setdefault("QT_QPA_PLATFORM", "xcb")
 
     if _QT6:
         QApplication.setHighDpiScaleFactorRoundingPolicy(
